@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/hooks/useWallet';
+import { switchToBSC } from '@/lib/contract';
 
 interface ConnectModalProps {
   isOpen: boolean;
@@ -105,7 +106,17 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
     
     const success = await connect();
     if (success) {
-      toast.success('MetaMask conectada');
+      // Auto-switch to BSC for low fees
+      try {
+        await switchToBSC(true); // Use testnet for development
+        toast.success('MetaMask conectada a BSC', {
+          description: 'Red configurada para comisiones bajas',
+        });
+      } catch {
+        toast.success('MetaMask conectada', {
+          description: 'Recuerda cambiar a BSC para jugar',
+        });
+      }
       onClose();
     }
     return success;
@@ -225,7 +236,7 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
           {mode === 'options' && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground mb-4">
-                Conecta tu wallet crypto para depósitos directos o crea una cuenta con correo
+                Conecta tu wallet para jugar con BNB en Binance Smart Chain (comisiones bajas ~$0.01)
               </p>
 
               {/* Wallet Options */}
