@@ -129,21 +129,25 @@ const CreateGameModal = ({ open, onOpenChange, onCreateGame }: CreateGameModalPr
         onOpenChange(false);
 
       } else {
-        // Pay with wallet (smart contract)
+        // Pay with wallet (smart contract on BSC)
         if (!isWalletConnected) {
-          toast.error('Conecta tu wallet');
+          toast.error('Conecta tu wallet MetaMask');
           return;
         }
 
         if (!isBSC) {
-          toast.error('Cambia a BSC primero');
-          return;
+          const switched = await switchToBSC(true);
+          if (!switched) {
+            toast.error('Cambia a BSC primero');
+            return;
+          }
         }
 
         if (isContractDeployed) {
+          // Use smart contract for on-chain betting
           const result = await createGame(stake);
           if (result) {
-            // Also create in database for tracking
+            // Also track in database
             if (user) {
               await supabase.from('games').insert({
                 creator_id: user.id,
@@ -160,7 +164,10 @@ const CreateGameModal = ({ open, onOpenChange, onCreateGame }: CreateGameModalPr
             onOpenChange(false);
           }
         } else {
-          toast.error('Smart contract no desplegado');
+          // Contract not deployed - notify user
+          toast.error('Smart contract en desarrollo', {
+            description: 'Usa "Balance App" por ahora o espera al despliegue del contrato',
+          });
         }
       }
     } catch (error: any) {
@@ -254,16 +261,18 @@ const CreateGameModal = ({ open, onOpenChange, onCreateGame }: CreateGameModalPr
 
           {/* Contract Status for wallet */}
           {paymentMethod === 'wallet' && isWalletConnected && isBSC && (
-            <div className={`flex items-center gap-2 p-2 rounded-lg text-xs ${
+            <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
               isContractDeployed 
-                ? 'bg-success/10 text-success' 
-                : 'bg-muted text-muted-foreground'
+                ? 'bg-success/10 text-success border border-success/30' 
+                : 'bg-warning/10 text-warning border border-warning/30'
             }`}>
-              <div className={`w-2 h-2 rounded-full ${isContractDeployed ? 'bg-success' : 'bg-muted-foreground'}`} />
-              {isContractDeployed 
-                ? 'Smart Contract conectado' 
-                : 'Contrato no desplegado'
-              }
+              <div className={`w-2 h-2 rounded-full ${isContractDeployed ? 'bg-success' : 'bg-warning'} animate-pulse`} />
+              <div className="flex-1">
+                {isContractDeployed 
+                  ? 'Smart Contract listo - Apuestas P2P seguras' 
+                  : 'Contrato en desarrollo - Próximamente disponible'
+                }
+              </div>
             </div>
           )}
 
@@ -288,7 +297,7 @@ const CreateGameModal = ({ open, onOpenChange, onCreateGame }: CreateGameModalPr
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              El ganador recibirá el 97.5% del total (2.5% fee del protocolo)
+              El ganador recibe el 97.5% del total (2.5% fee). Comisión BSC: ~$0.01
             </p>
           </div>
 
