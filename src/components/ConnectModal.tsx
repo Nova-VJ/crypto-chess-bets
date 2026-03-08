@@ -219,7 +219,7 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="glass-card w-full max-w-md p-6"
+          className="glass-card w-full max-w-md p-6 max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-6">
