@@ -23,7 +23,7 @@ import ConnectModal from '@/components/ConnectModal';
 import DepositModal from '@/components/DepositModal';
 import WithdrawModal from '@/components/WithdrawModal';
 import RankIcon from '@/components/RankIcon';
-import { coachApiUrl } from '@/lib/coachApi';
+
 import {
   Dialog,
   DialogContent,
