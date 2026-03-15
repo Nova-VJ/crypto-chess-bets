@@ -88,26 +88,7 @@ const AICoach = ({ profile }: AICoachProps) => {
   };
 
   const handleDownloadPDF = async () => {
-    if (!profile?.id) return;
-    try {
-      const res = await fetch(`${API_URL}/report/${profile.id}`, {
-        headers: { 'Authorization': `Bearer ${session?.access_token}` }
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || "Error generando PDF");
-      }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `IA_Coach_Pro_Report.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      toast.success("Informe PDF descargado");
-    } catch (err: any) {
-      toast.error(err.message || "Error descargando informe");
-    }
+    toast.info("La descarga de informes PDF estará disponible próximamente.");
   };
 
   const handleSendMessage = async () => {
