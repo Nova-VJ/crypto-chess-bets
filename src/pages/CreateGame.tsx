@@ -51,7 +51,7 @@ const CreateGame = () => {
     }
 
     const minWager = paymentMethod === 'web3'
-      ? (currency === 'USDT' ? 1 : 0.00001)
+      ? (currency === 'USDT' ? 0.1 : 0.00001)
       : (currency === 'USDT' ? 0.01 : 0.00001);
     const maxWager = paymentMethod === 'web3'
       ? (currency === 'USDT' ? 10000 : 100)
