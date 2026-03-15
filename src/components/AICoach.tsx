@@ -120,7 +120,8 @@ const AICoach = ({ profile }: AICoachProps) => {
         persona: selectedCoachId,
         interaction_mode: 'coach_room',
         message_kind: 'user',
-        session_token: sessionToken
+        session_token: sessionToken,
+        user_id: profile.id
       });
       if (!data.reply) throw new Error("Chat reply missing");
       setChatHistories(prev => ({
