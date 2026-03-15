@@ -169,8 +169,19 @@ export default function HistoricalPlay() {
   const pendingEngineFenRef = useRef<string | null>(null);
   const previousCoachIdRef = useRef<string | null>(null);
 
+  const [wikiProfile, setWikiProfile] = useState<any>(null);
+
   const activeCoach = COACHES.find(c => c.id === selectedCoachId);
   const currentChatHistory = selectedCoachId ? (chatHistories[selectedCoachId] || []) : [];
+
+  // Prefetch wiki profile when coach changes
+  useEffect(() => {
+    if (!selectedCoachId) return;
+    setWikiProfile(null);
+    supabase.functions.invoke('wiki-profile', { body: { coach_id: selectedCoachId, lang: 'es' } })
+      .then(({ data }) => { if (data && !data.error) setWikiProfile(data); })
+      .catch(() => {});
+  }, [selectedCoachId]);
 
   const fetchCoachHistory = async (
     _sessionToken: string | null = currentSessionToken,
