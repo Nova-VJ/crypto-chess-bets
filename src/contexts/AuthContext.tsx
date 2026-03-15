@@ -202,7 +202,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (signUpData.user) {
               const { error: linkError } = await supabase
                 .from('profiles')
-                .update({ wallet_address: address })
+                .update({ 
+                  wallet_address: address, 
+                  preferred_wallet: activeWalletType || 'metamask' 
+                })
                 .eq('id', signUpData.user.id);
               
               if (linkError) console.error("AUTH_DEBUG: Profile link error:", linkError);
