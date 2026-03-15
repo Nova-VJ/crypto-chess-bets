@@ -36,7 +36,7 @@ const API_URL = coachApiUrl('/api');
 const Play = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user, profile, session } = useAuth();
   const [gameData, setGameData] = useState<any>(null);
   const [chess] = useState(new Chess());
   const [isMuted, setIsMuted] = useState(false);
