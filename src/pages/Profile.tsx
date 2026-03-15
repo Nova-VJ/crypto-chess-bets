@@ -142,18 +142,14 @@ const Profile = () => {
   }, [user, profile, session?.access_token]);
 
   const loadProgress = async () => {
-    if (!profile || !session?.access_token) return;
-    try {
-      const res = await fetch(`${API_URL}/user/progress`, {
-        headers: { 'Authorization': `Bearer ${session.access_token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUserProgress(prev => ({ ...prev, ...data }));
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    if (!profile) return;
+    // Progress is now derived from local profile data
+    setUserProgress(prev => ({
+      ...prev,
+      level: Math.max(1, Math.floor((profile.games_played || 0) / 10) + 1),
+      xp: ((profile.games_played || 0) * 50) + ((profile.games_won || 0) * 100),
+      rank: (profile.rating || 1200) >= 2000 ? 'Maestro' : (profile.rating || 1200) >= 1600 ? 'Avanzado' : (profile.rating || 1200) >= 1200 ? 'Intermedio' : 'Principiante',
+    }));
   };
 
   const loadHistory = async () => {
