@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Crown, Target, Shield, Zap, ChevronRight, Activity, TrendingUp, AlertTriangle, Lightbulb, UploadCloud, Loader2, MessageSquare, Send, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { coachApiUrl } from '@/lib/coachApi';
+import { invokeChessChat } from '@/lib/coachApi';
 
 interface AICoachProps {
   profile: any;
