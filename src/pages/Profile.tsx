@@ -147,7 +147,7 @@ const Profile = () => {
     setUserProgress(prev => ({
       ...prev,
       level: Math.max(1, Math.floor((profile.games_played || 0) / 10) + 1),
-      xp: ((profile.games_played || 0) * 50) + ((profile.games_won || 0) * 100),
+      xp: ((profile.games_played || 0) * 50) + ((profile.wins || 0) * 100),
       rank: (profile.rating || 1200) >= 2000 ? 'Maestro' : (profile.rating || 1200) >= 1600 ? 'Avanzado' : (profile.rating || 1200) >= 1200 ? 'Intermedio' : 'Principiante',
     }));
   };
