@@ -156,8 +156,8 @@ const AcceptanceModal = ({ lobbyGame, onClose, onStart }: AcceptanceModalProps) 
        toast.success('Monto interno reembolsado a tu cuenta', { id: 'cancel' });
     }
 
-    const { error } = await supabase
-      .from('lobby_games')
+    const { error } = await (supabase
+      .from('lobby_games') as any)
       .update({ status: 'cancelled' })
       .eq('id', lobbyGame.id);
 
