@@ -128,11 +128,7 @@ const Lobby = () => {
         *,
         creator:profiles!creator_user_id (
           display_name,
-          avatar_url,
-          country_code,
-          rating_blitz,
-          rating_rapid,
-          rating_bullet,
+          rating,
           games_played
         )
       `)
