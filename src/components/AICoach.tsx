@@ -5,6 +5,7 @@ import { Brain, Crown, Target, Shield, Zap, ChevronRight, Activity, TrendingUp, 
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { invokeChessChat } from '@/lib/coachApi';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AICoachProps {
   profile: any;
@@ -25,6 +26,7 @@ const AICoach = ({ profile }: AICoachProps) => {
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [selectedCoachId, setSelectedCoachId] = useState('general');
+  const [wikiProfile, setWikiProfile] = useState<any>(null);
 
   const COACHES = [
     { id: 'general', name: 'Master IA', icon: Brain, color: 'text-indigo-400', desc: 'Análisis balanceado' },
@@ -37,6 +39,15 @@ const AICoach = ({ profile }: AICoachProps) => {
 
   const activeCoach = COACHES.find(c => c.id === selectedCoachId) || COACHES[0];
   const currentChatHistory = chatHistories[selectedCoachId] || [];
+
+  // Prefetch wiki profile when coach changes
+  useEffect(() => {
+    if (selectedCoachId === 'general') { setWikiProfile(null); return; }
+    setWikiProfile(null);
+    supabase.functions.invoke('wiki-profile', { body: { coach_id: selectedCoachId, lang: 'es' } })
+      .then(({ data }) => { if (data && !data.error) setWikiProfile(data); })
+      .catch(() => {});
+  }, [selectedCoachId]);
 
   const ensureCoachRoomSession = (coachId: string) => {
     const existing = chatSessionTokens[coachId];

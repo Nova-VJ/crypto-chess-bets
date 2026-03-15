@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/hooks/useWallet';
 import { invokeChessMove, invokeChessChat, invokeChessEvaluate } from '@/lib/coachApi';
+import { supabase } from '@/integrations/supabase/client';
 import ConnectModal from '@/components/ConnectModal';
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter 
@@ -169,8 +170,19 @@ export default function HistoricalPlay() {
   const pendingEngineFenRef = useRef<string | null>(null);
   const previousCoachIdRef = useRef<string | null>(null);
 
+  const [wikiProfile, setWikiProfile] = useState<any>(null);
+
   const activeCoach = COACHES.find(c => c.id === selectedCoachId);
   const currentChatHistory = selectedCoachId ? (chatHistories[selectedCoachId] || []) : [];
+
+  // Prefetch wiki profile when coach changes
+  useEffect(() => {
+    if (!selectedCoachId) return;
+    setWikiProfile(null);
+    supabase.functions.invoke('wiki-profile', { body: { coach_id: selectedCoachId, lang: 'es' } })
+      .then(({ data }) => { if (data && !data.error) setWikiProfile(data); })
+      .catch(() => {});
+  }, [selectedCoachId]);
 
   const fetchCoachHistory = async (
     _sessionToken: string | null = currentSessionToken,
@@ -450,7 +462,7 @@ export default function HistoricalPlay() {
           if (movesSinceLast >= 10 && !isFetchingCommentaryRef.current) {
             isFetchingCommentaryRef.current = true;
             invokeChessChat({ 
-              message: "Comenta brevemente la posicion actual.", 
+              message: "¿Qué te parece esta posición?", 
               persona: activeCoach.id,
               interaction_mode: 'in_game',
               message_kind: 'auto_commentary',
@@ -730,9 +742,34 @@ export default function HistoricalPlay() {
                     <h3 className="text-xs font-black text-zinc-300 uppercase tracking-widest">Memoria Histórica</h3>
                   </div>
 
-                  <p className="text-zinc-400 text-xs leading-relaxed mb-6 italic font-serif">
-                    "{activeCoach.history}"
-                  </p>
+                  {wikiProfile?.wikipedia_summary ? (
+                    <p className="text-zinc-400 text-xs leading-relaxed mb-4 italic font-serif">
+                      {wikiProfile.wikipedia_summary.slice(0, 300)}...
+                    </p>
+                  ) : (
+                    <p className="text-zinc-400 text-xs leading-relaxed mb-4 italic font-serif">
+                      "{activeCoach.history}"
+                    </p>
+                  )}
+                  {wikiProfile && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {wikiProfile.birth_date && (
+                        <span className="px-2 py-1 bg-white/5 border border-white/5 rounded-md text-[9px] text-zinc-400 font-mono">
+                          🎂 {wikiProfile.birth_date}
+                        </span>
+                      )}
+                      {wikiProfile.death_date && (
+                        <span className="px-2 py-1 bg-white/5 border border-white/5 rounded-md text-[9px] text-zinc-400 font-mono">
+                          ✝ {wikiProfile.death_date}
+                        </span>
+                      )}
+                      {wikiProfile.extra_json?.world_champion_terms?.length > 0 && (
+                        <span className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-md text-[9px] text-yellow-400 font-mono">
+                          👑 Campeón Mundial
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-4 mb-6">
                     <div>
