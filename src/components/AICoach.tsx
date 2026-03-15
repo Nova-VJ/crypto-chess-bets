@@ -79,28 +79,8 @@ const AICoach = ({ profile }: AICoachProps) => {
     // No fetch needed
   }, [selectedCoachId, session?.access_token]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !profile?.id) return;
-    
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-    
-    try {
-      const res = await fetch(`${API_URL}/upload-pgn/${profile.id}`, {
-        method: "POST",
-        headers: { 'Authorization': `Bearer ${session?.access_token}` },
-        body: formData
-      });
-      if (!res.ok) throw new Error("Upload failed");
-      toast.success("Partidas importadas correctamente al motor AI");
-      fetchInsights();
-    } catch (err) {
-      toast.error("Error importando PGN local");
-    } finally {
-      setIsUploading(false);
-    }
+  const handleFileUpload = async (_e: React.ChangeEvent<HTMLInputElement>) => {
+    toast.info("La importación de PGN estará disponible próximamente.");
   };
 
   const handleAnalyze = async () => {
