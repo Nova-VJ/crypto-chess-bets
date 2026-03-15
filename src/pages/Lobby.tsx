@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ContractVersionBanner from '@/components/ContractVersionBanner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
