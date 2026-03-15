@@ -92,6 +92,7 @@ const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
     try {
       const { getActiveProvider } = await import('@/contexts/WalletContext');
       const provider = new BrowserProvider(getActiveProvider());
+      const signer = await provider.getSigner();
       let txHash: string;
 
       if (currency === 'USDT') {
