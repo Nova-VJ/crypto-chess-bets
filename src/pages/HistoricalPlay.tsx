@@ -354,41 +354,26 @@ export default function HistoricalPlay() {
     setShowEmojiPicker(false);
 
     try {
-      const response = await fetchCoachApi('/api/chat', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify({ 
-          message: userMsg, 
-          persona: selectedCoachId,
-          interaction_mode: interactionMode,
-          message_kind: 'user',
-          fen: game.fen(),
-          pgn: game.pgn(),
-          move_count: game.history().length,
-          user_color: userColor,
-          turn: game.turn(),
-          game_id: null,
-          session_token: sessionToken
-        }),
-      }, { retries: 2 });
-      if (!response.ok) throw new Error("Chat failed");
-      const data = await response.json();
+      const data = await invokeChessChat({ 
+        message: userMsg, 
+        persona: selectedCoachId,
+        interaction_mode: interactionMode,
+        message_kind: 'user',
+        fen: game.fen(),
+        pgn: game.pgn(),
+        move_count: game.history().length,
+        user_color: userColor,
+        turn: game.turn(),
+        game_id: null,
+        session_token: sessionToken
+      });
       
       if (!data.reply) return;
 
       setChatHistories(prev => {
         const history = prev[selectedCoachId] || [];
         const lastMsg = history.length > 0 ? history[history.length - 1].text : null;
-        
-        // Skip if same as last message (Frontend Duplication Guard)
-        if (data.reply === lastMsg) {
-          console.log("DEBUG: Frontend blocked duplicate message.");
-          return prev;
-        }
-
+        if (data.reply === lastMsg) return prev;
         return {
           ...prev,
           [selectedCoachId]: [...history, { role: 'coach', text: data.reply }]
