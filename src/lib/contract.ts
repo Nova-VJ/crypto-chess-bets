@@ -85,7 +85,7 @@ export const switchToBSC = async (testnet = false): Promise<boolean> => {
   } catch (switchError: any) {
     if (switchError.code === 4902) {
       try {
-        await window.ethereum.request({
+        await activeProvider.request({
           method: 'wallet_addEthereumChain',
           params: [network],
         });
