@@ -517,6 +517,57 @@ export type Database = {
           },
         ]
       }
+      wiki_entity_cache: {
+        Row: {
+          birth_date: string | null
+          coach_id: string
+          death_date: string | null
+          description: string | null
+          extra_json: Json | null
+          fetched_at: string | null
+          id: string
+          image: string | null
+          label: string | null
+          lang: string
+          qid: string | null
+          wikidata_json: Json | null
+          wikipedia_summary: string | null
+          wikipedia_title: string | null
+        }
+        Insert: {
+          birth_date?: string | null
+          coach_id: string
+          death_date?: string | null
+          description?: string | null
+          extra_json?: Json | null
+          fetched_at?: string | null
+          id?: string
+          image?: string | null
+          label?: string | null
+          lang?: string
+          qid?: string | null
+          wikidata_json?: Json | null
+          wikipedia_summary?: string | null
+          wikipedia_title?: string | null
+        }
+        Update: {
+          birth_date?: string | null
+          coach_id?: string
+          death_date?: string | null
+          description?: string | null
+          extra_json?: Json | null
+          fetched_at?: string | null
+          id?: string
+          image?: string | null
+          label?: string | null
+          lang?: string
+          qid?: string | null
+          wikidata_json?: Json | null
+          wikipedia_summary?: string | null
+          wikipedia_title?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
