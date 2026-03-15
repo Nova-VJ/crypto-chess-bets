@@ -274,6 +274,51 @@ export const withdrawBalance = async (currency: CurrencyType = 'BNB'): Promise<s
   }
 };
 
+export type SettleGameResult = {
+  status: 'settled' | 'skipped' | 'error';
+  txHash?: string;
+  reason?: string;
+};
+
+export const settleGameOnChain = async (
+  gameId: string,
+  winnerAddress: string | null,
+  isDraw = false
+): Promise<SettleGameResult> => {
+  try {
+    const contract = await getContract();
+    if (!contract) return { status: 'error', reason: 'Contract not available' };
+
+    const provider = new BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const signerAddress = await signer.getAddress();
+
+    const ownerAddress: string = await contract.owner();
+    if (ownerAddress.toLowerCase() !== signerAddress.toLowerCase()) {
+      return { status: 'skipped', reason: 'Solo la wallet del owner puede liquidar partidas on-chain' };
+    }
+
+    if (!isDraw && !winnerAddress) {
+      return { status: 'error', reason: 'Winner address is required for non-draw games' };
+    }
+
+    const tx = isDraw
+      ? await contract.finishGameDraw(gameId)
+      : await contract.finishGame(gameId, winnerAddress);
+
+    await tx.wait();
+    return { status: 'settled', txHash: tx.hash };
+  } catch (error: any) {
+    console.error('Error settling game on chain:', error);
+
+    if (error.code === 'ACTION_REJECTED') {
+      return { status: 'error', reason: 'Transacción rechazada por el usuario' };
+    }
+
+    return { status: 'error', reason: error?.reason || error?.message || 'Error al liquidar partida' };
+  }
+};
+
 export const getGameCreatedEvents = async (playerAddress: string): Promise<string[]> => {
   try {
     const contract = await getContract();
