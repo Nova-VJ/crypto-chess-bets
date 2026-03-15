@@ -78,6 +78,9 @@ const CreateGame = () => {
       let contractGameId = null;
 
       if (paymentMethod === 'web3') {
+        if (currency === 'USDT' && !supportsUSDT) {
+          throw new Error('El contrato actual (V1) no soporta USDT. Despliega ChessBetV2 primero.');
+        }
         // 1. Crear partida en la Blockchain (Bloquea los fondos)
         toast.loading('Confirmando transacción en la blockchain...', { id: 'create-tx' });
         const txResult = await createGameOnChain(wager, currency);
