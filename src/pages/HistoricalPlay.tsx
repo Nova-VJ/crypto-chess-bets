@@ -285,18 +285,10 @@ export default function HistoricalPlay() {
 
 
   const loadHistory = async () => {
-    if (!profile || !session) return;
-    setIsLoadingHistory(true);
-    try {
-      const res = await fetchCoachApi('/api/history', {
-        headers: { 'Authorization': `Bearer ${session.access_token}` }
-      }, { retries: 2 });
-      if (res.ok) {
-        const data = await res.json();
-        setGameHistory(data.games || []);
-      }
-    } catch (e) { console.error(e); }
-    finally { setIsLoadingHistory(false); }
+    // History was stored in the Python backend's SQLite DB
+    // Now returns empty - will be stored in Lovable Cloud DB in the future
+    setGameHistory([]);
+    setIsLoadingHistory(false);
   };
 
   const handleGameOver = async (manualResult?: string) => {
