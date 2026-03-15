@@ -741,9 +741,34 @@ export default function HistoricalPlay() {
                     <h3 className="text-xs font-black text-zinc-300 uppercase tracking-widest">Memoria Histórica</h3>
                   </div>
 
-                  <p className="text-zinc-400 text-xs leading-relaxed mb-6 italic font-serif">
-                    "{activeCoach.history}"
-                  </p>
+                  {wikiProfile?.wikipedia_summary ? (
+                    <p className="text-zinc-400 text-xs leading-relaxed mb-4 italic font-serif">
+                      {wikiProfile.wikipedia_summary.slice(0, 300)}...
+                    </p>
+                  ) : (
+                    <p className="text-zinc-400 text-xs leading-relaxed mb-4 italic font-serif">
+                      "{activeCoach.history}"
+                    </p>
+                  )}
+                  {wikiProfile && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {wikiProfile.birth_date && (
+                        <span className="px-2 py-1 bg-white/5 border border-white/5 rounded-md text-[9px] text-zinc-400 font-mono">
+                          🎂 {wikiProfile.birth_date}
+                        </span>
+                      )}
+                      {wikiProfile.death_date && (
+                        <span className="px-2 py-1 bg-white/5 border border-white/5 rounded-md text-[9px] text-zinc-400 font-mono">
+                          ✝ {wikiProfile.death_date}
+                        </span>
+                      )}
+                      {wikiProfile.extra_json?.world_champion_terms?.length > 0 && (
+                        <span className="px-2 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-md text-[9px] text-yellow-400 font-mono">
+                          👑 Campeón Mundial
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-4 mb-6">
                     <div>
