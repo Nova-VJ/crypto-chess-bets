@@ -20,7 +20,7 @@ import { Slider } from '@/components/ui/slider';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { createGameOnChain } from '@/lib/contract';
+import { createGameOnChain, cancelGameOnChain } from '@/lib/contract';
 import { CurrencyType } from '@/lib/tokens';
 
 const PRESETS = [
