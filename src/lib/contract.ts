@@ -292,7 +292,7 @@ export const settleGameOnChain = async (
     const contract = await getContract();
     if (!contract) return { status: 'error', reason: 'Contract not available' };
 
-    const provider = new BrowserProvider(window.ethereum);
+    const provider = new BrowserProvider(getActiveProvider());
     const signer = await provider.getSigner();
     const signerAddress = await signer.getAddress();
 
