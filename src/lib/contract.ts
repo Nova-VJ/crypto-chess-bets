@@ -77,7 +77,7 @@ export const switchToBSC = async (testnet = false): Promise<boolean> => {
   const network = testnet ? BSC_TESTNET : BSC_MAINNET;
 
   try {
-    await window.ethereum.request({
+    await activeProvider.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: network.chainId }],
     });
