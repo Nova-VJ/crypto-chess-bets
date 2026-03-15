@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import ContractVersionBanner from '@/components/ContractVersionBanner';
+import { useContractVersion } from '@/hooks/useContractVersion';
 import { 
   Zap, 
   Timer, 
@@ -40,6 +42,7 @@ const CreateGame = () => {
   const [currency, setCurrency] = useState<CurrencyType>('BNB');
   const [paymentMethod, setPaymentMethod] = useState<'web3' | 'internal'>('web3');
   const [isCreating, setIsCreating] = useState(false);
+  const { isV2, supportsUSDT } = useContractVersion();
 
   const handleCreate = async () => {
     if (!user) {
@@ -75,6 +78,9 @@ const CreateGame = () => {
       let contractGameId = null;
 
       if (paymentMethod === 'web3') {
+        if (currency === 'USDT' && !supportsUSDT) {
+          throw new Error('El contrato actual (V1) no soporta USDT. Despliega ChessBetV2 primero.');
+        }
         // 1. Crear partida en la Blockchain (Bloquea los fondos)
         toast.loading('Confirmando transacción en la blockchain...', { id: 'create-tx' });
         const txResult = await createGameOnChain(wager, currency);
@@ -150,7 +156,7 @@ const CreateGame = () => {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-300">
       <Header />
-
+      <ContractVersionBanner />
       <main className="container mx-auto px-4 pt-24 pb-12 flex items-center justify-center">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}

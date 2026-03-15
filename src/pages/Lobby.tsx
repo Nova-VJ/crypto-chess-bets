@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ContractVersionBanner from '@/components/ContractVersionBanner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -243,6 +244,7 @@ const Lobby = () => {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-300">
       <Header />
+      <ContractVersionBanner />
 
       <main className="container mx-auto px-4 pt-24 pb-12 max-w-7xl">
         <div className="flex flex-col lg:flex-row gap-8">
