@@ -329,6 +329,21 @@ export default function HistoricalPlay() {
     localStorage.removeItem('chess_game_state');
     localStorage.removeItem('chess_game_timers');
     const result = manualResult || (game.isCheckmate() ? (game.turn() === 'w' ? '0-1' : '1-0') : '1/2-1/2');
+
+    // Save game to coach_game_history
+    if (profile?.id && selectedCoachId) {
+      try {
+        await supabase.from('coach_game_history').insert({
+          user_id: profile.id,
+          coach_id: selectedCoachId,
+          session_token: completedSessionToken || undefined,
+          result,
+          user_color: userColor,
+          pgn: game.pgn() || null,
+          time_control: selectedTime,
+        });
+      } catch (e) { console.error("Game history save error:", e); }
+    }
     
     setIsEvaluating(true);
     setShowEvalModal(true);
