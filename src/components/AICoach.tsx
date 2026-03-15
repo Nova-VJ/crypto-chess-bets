@@ -5,6 +5,7 @@ import { Brain, Crown, Target, Shield, Zap, ChevronRight, Activity, TrendingUp, 
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { invokeChessChat } from '@/lib/coachApi';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AICoachProps {
   profile: any;
