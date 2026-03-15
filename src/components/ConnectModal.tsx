@@ -52,7 +52,7 @@ const ConnectModal = ({ isOpen, onClose, initialMode = 'options', initialEmail =
     }
   }, [isOpen, initialMode, initialEmail]);
   
-  const { signUp, signIn, resetPassword } = useAuth();
+  const { signUp, signIn, resetPassword, clearSignoutFlag } = useAuth();
   const { connect, hasMetaMask } = useWallet();
 
   const connectWalletByType = async (walletType: WalletType): Promise<boolean> => {
