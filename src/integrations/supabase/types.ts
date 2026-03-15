@@ -111,61 +111,150 @@ export type Database = {
           },
         ]
       }
+      game_messages: {
+        Row: {
+          content: string
+          created_at: string
+          game_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          game_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          game_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_messages_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       games: {
         Row: {
+          black_time_ms: number | null
+          black_user_id: string | null
           contract_game_id: string | null
           created_at: string
           creator_id: string
           creator_paid: boolean
           ended_at: string | null
+          fen: string | null
           id: string
+          increment_seconds: number | null
           is_smart_contract: boolean
+          last_move_at: string | null
+          lobby_id: string | null
           opponent_id: string | null
           opponent_paid: boolean
+          pgn: string | null
+          result: string | null
           stake_amount: number
           started_at: string | null
           status: string
           time_control: number
+          time_control_minutes: number | null
+          white_time_ms: number | null
+          white_user_id: string | null
           winner_id: string | null
+          winner_user_id: string | null
         }
         Insert: {
+          black_time_ms?: number | null
+          black_user_id?: string | null
           contract_game_id?: string | null
           created_at?: string
           creator_id: string
           creator_paid?: boolean
           ended_at?: string | null
+          fen?: string | null
           id?: string
+          increment_seconds?: number | null
           is_smart_contract?: boolean
+          last_move_at?: string | null
+          lobby_id?: string | null
           opponent_id?: string | null
           opponent_paid?: boolean
+          pgn?: string | null
+          result?: string | null
           stake_amount: number
           started_at?: string | null
           status?: string
           time_control?: number
+          time_control_minutes?: number | null
+          white_time_ms?: number | null
+          white_user_id?: string | null
           winner_id?: string | null
+          winner_user_id?: string | null
         }
         Update: {
+          black_time_ms?: number | null
+          black_user_id?: string | null
           contract_game_id?: string | null
           created_at?: string
           creator_id?: string
           creator_paid?: boolean
           ended_at?: string | null
+          fen?: string | null
           id?: string
+          increment_seconds?: number | null
           is_smart_contract?: boolean
+          last_move_at?: string | null
+          lobby_id?: string | null
           opponent_id?: string | null
           opponent_paid?: boolean
+          pgn?: string | null
+          result?: string | null
           stake_amount?: number
           started_at?: string | null
           status?: string
           time_control?: number
+          time_control_minutes?: number | null
+          white_time_ms?: number | null
+          white_user_id?: string | null
           winner_id?: string | null
+          winner_user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "games_black_user_id_fkey"
+            columns: ["black_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "games_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "games_lobby_id_fkey"
+            columns: ["lobby_id"]
+            isOneToOne: false
+            referencedRelation: "lobby_games"
             referencedColumns: ["id"]
           },
           {
@@ -176,8 +265,103 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "games_white_user_id_fkey"
+            columns: ["white_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "games_winner_id_fkey"
             columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "games_winner_user_id_fkey"
+            columns: ["winner_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lobby_games: {
+        Row: {
+          accept_creator: boolean
+          accept_deadline_at: string | null
+          accept_joiner: boolean
+          contract_game_id: string | null
+          created_at: string
+          creator_games_played_snapshot: number | null
+          creator_rating_snapshot: number | null
+          creator_user_id: string
+          currency: string
+          id: string
+          increment_seconds: number
+          joiner_games_played_snapshot: number | null
+          joiner_rating_snapshot: number | null
+          joiner_user_id: string | null
+          mode: string
+          payment_method: string
+          status: string
+          time_control_minutes: number
+          wager_amount: number
+        }
+        Insert: {
+          accept_creator?: boolean
+          accept_deadline_at?: string | null
+          accept_joiner?: boolean
+          contract_game_id?: string | null
+          created_at?: string
+          creator_games_played_snapshot?: number | null
+          creator_rating_snapshot?: number | null
+          creator_user_id: string
+          currency?: string
+          id?: string
+          increment_seconds?: number
+          joiner_games_played_snapshot?: number | null
+          joiner_rating_snapshot?: number | null
+          joiner_user_id?: string | null
+          mode?: string
+          payment_method?: string
+          status?: string
+          time_control_minutes?: number
+          wager_amount?: number
+        }
+        Update: {
+          accept_creator?: boolean
+          accept_deadline_at?: string | null
+          accept_joiner?: boolean
+          contract_game_id?: string | null
+          created_at?: string
+          creator_games_played_snapshot?: number | null
+          creator_rating_snapshot?: number | null
+          creator_user_id?: string
+          currency?: string
+          id?: string
+          increment_seconds?: number
+          joiner_games_played_snapshot?: number | null
+          joiner_rating_snapshot?: number | null
+          joiner_user_id?: string | null
+          mode?: string
+          payment_method?: string
+          status?: string
+          time_control_minutes?: number
+          wager_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lobby_games_creator_user_id_fkey"
+            columns: ["creator_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lobby_games_joiner_user_id_fkey"
+            columns: ["joiner_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
