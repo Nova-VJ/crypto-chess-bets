@@ -70,8 +70,8 @@ const Play = () => {
   }, [id]);
 
   const fetchGame = async () => {
-    const { data, error } = await supabase
-      .from('games')
+    const { data, error } = await (supabase
+      .from('games') as any)
       .select(`
         *,
         white_player:profiles!games_white_user_id_fkey (display_name, avatar_url, country_code, rating_blitz),
