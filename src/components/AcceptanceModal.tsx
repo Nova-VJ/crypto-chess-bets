@@ -61,8 +61,8 @@ const AcceptanceModal = ({ lobbyGame, onClose, onStart }: AcceptanceModalProps) 
     setIsAccepting(true);
     
     // 1. Create the active game record
-    const { data: game, error: gameError } = await supabase
-      .from('games')
+    const { data: game, error: gameError } = await (supabase
+      .from('games') as any)
       .insert({
         lobby_id: lobbyGame.id,
         status: 'in_progress',
@@ -84,8 +84,8 @@ const AcceptanceModal = ({ lobbyGame, onClose, onStart }: AcceptanceModalProps) 
     }
 
     // 2. Mark lobby game as in_progress
-    await supabase
-      .from('lobby_games')
+    await (supabase
+      .from('lobby_games') as any)
       .update({ status: 'in_progress' })
       .eq('id', lobbyGame.id);
 
@@ -127,8 +127,8 @@ const AcceptanceModal = ({ lobbyGame, onClose, onStart }: AcceptanceModalProps) 
 
     const update = isCreator ? { accept_creator: true } : { accept_joiner: true };
     
-    const { error } = await supabase
-      .from('lobby_games')
+    const { error } = await (supabase
+      .from('lobby_games') as any)
       .update(update)
       .eq('id', lobbyGame.id);
 
@@ -156,8 +156,8 @@ const AcceptanceModal = ({ lobbyGame, onClose, onStart }: AcceptanceModalProps) 
        toast.success('Monto interno reembolsado a tu cuenta', { id: 'cancel' });
     }
 
-    const { error } = await supabase
-      .from('lobby_games')
+    const { error } = await (supabase
+      .from('lobby_games') as any)
       .update({ status: 'cancelled' })
       .eq('id', lobbyGame.id);
 
@@ -168,8 +168,8 @@ const AcceptanceModal = ({ lobbyGame, onClose, onStart }: AcceptanceModalProps) 
   };
 
   const handleTimeout = async () => {
-    await supabase
-      .from('lobby_games')
+    await (supabase
+      .from('lobby_games') as any)
       .update({ status: 'expired' })
       .eq('id', lobbyGame.id);
     onClose();

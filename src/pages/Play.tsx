@@ -36,7 +36,7 @@ const API_URL = coachApiUrl('/api');
 const Play = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user, profile, session } = useAuth();
   const [gameData, setGameData] = useState<any>(null);
   const [chess] = useState(new Chess());
   const [isMuted, setIsMuted] = useState(false);
@@ -70,8 +70,8 @@ const Play = () => {
   }, [id]);
 
   const fetchGame = async () => {
-    const { data, error } = await supabase
-      .from('games')
+    const { data, error } = await (supabase
+      .from('games') as any)
       .select(`
         *,
         white_player:profiles!games_white_user_id_fkey (display_name, avatar_url, country_code, rating_blitz),
@@ -222,8 +222,8 @@ const Play = () => {
   }, [id]);
 
   const fetchMessages = async () => {
-    const { data } = await supabase
-      .from('game_messages')
+    const { data } = await (supabase
+      .from('game_messages') as any)
       .select('*')
       .eq('game_id', id)
       .order('created_at', { ascending: true });
@@ -233,7 +233,7 @@ const Play = () => {
   const sendMessage = async () => {
     if (!newMessage.trim() || !user) return;
     
-    await supabase.from('game_messages').insert({
+    await (supabase.from('game_messages') as any).insert({
       game_id: id,
       user_id: user.id,
       content: newMessage.trim()

@@ -112,8 +112,8 @@ const Lobby = () => {
 
   const checkActiveHandshake = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('lobby_games')
+    const { data } = await (supabase
+      .from('lobby_games') as any)
       .select('*')
       .or(`creator_user_id.eq.${user.id},joiner_user_id.eq.${user.id}`)
       .eq('status', 'pending_accept')
@@ -126,8 +126,8 @@ const Lobby = () => {
 
   const fetchGames = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('lobby_games')
+    const { data, error } = await (supabase
+      .from('lobby_games') as any)
       .select(`
         *,
         creator:profiles!creator_user_id (
@@ -164,8 +164,8 @@ const Lobby = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from('lobby_games')
+    const { error } = await (supabase
+      .from('lobby_games') as any)
       .update({
         joiner_user_id: user.id,
         status: 'pending_accept',
@@ -216,8 +216,8 @@ const Lobby = () => {
       }
 
       // 2. Update game status in DB
-      const { error } = await supabase
-        .from('lobby_games')
+      const { error } = await (supabase
+        .from('lobby_games') as any)
         .update({ status: 'cancelled' })
         .eq('id', game.id);
 
