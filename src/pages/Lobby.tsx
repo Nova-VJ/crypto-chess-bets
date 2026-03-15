@@ -153,7 +153,11 @@ const Lobby = () => {
 
   const handleJoin = async (gameId: string) => {
     if (!user) {
-      toast.error('Debes iniciar sesión para jugar');
+      if (isSyncing) {
+        toast.info('Vinculando tu wallet... intenta de nuevo en unos segundos');
+      } else {
+        toast.error('Debes iniciar sesión para jugar');
+      }
       return;
     }
 
