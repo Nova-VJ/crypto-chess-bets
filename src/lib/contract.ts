@@ -121,8 +121,8 @@ export const createGameOnChain = async (
       throw new Error('Monto inválido');
     }
 
-    if (currency === 'USDT' && amountNumber < 1) {
-      throw new Error('La apuesta mínima en USDT on-chain es 1 USDT');
+    if (currency === 'USDT' && amountNumber < 0.1) {
+      throw new Error('La apuesta mínima en USDT on-chain es 0.1 USDT');
     }
 
     if (currency === 'USDT' && amountNumber > 10000) {
