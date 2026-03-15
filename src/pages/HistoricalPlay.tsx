@@ -173,31 +173,11 @@ export default function HistoricalPlay() {
   const currentChatHistory = selectedCoachId ? (chatHistories[selectedCoachId] || []) : [];
 
   const fetchCoachHistory = async (
-    sessionToken: string | null = currentSessionToken,
-    interactionMode: 'pre_game' | 'in_game' | 'post_game' = isPlaying ? 'in_game' : 'pre_game'
+    _sessionToken: string | null = currentSessionToken,
+    _interactionMode: 'pre_game' | 'in_game' | 'post_game' = isPlaying ? 'in_game' : 'pre_game'
   ) => {
-    if (!profile?.id || !selectedCoachId || !session?.access_token || !sessionToken) return;
-    try {
-      const params = new URLSearchParams({
-        session_token: sessionToken,
-        interaction_mode: interactionMode
-      });
-      const res = await fetchCoachApi(`/api/chat/history/${selectedCoachId}?${params.toString()}`, {
-        headers: { 
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      }, { retries: 2 });
-      if (res.ok) {
-        const data = await res.json();
-        const history = data.map((m: any) => ({
-          role: (m.role === 'model' || m.role === 'coach') ? 'coach' : 'user',
-          text: m.text
-        }));
-        setChatHistories(prev => ({ ...prev, [selectedCoachId]: history }));
-      }
-    } catch (e) {
-      console.error("Failed to fetch coach history:", e);
-    }
+    // Chat history is now local-only (edge functions are stateless)
+    // No-op: history is kept in React state per session
   };
 
   useEffect(() => {
