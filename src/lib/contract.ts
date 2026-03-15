@@ -350,7 +350,7 @@ export type ContractVersion = 'v1' | 'v2' | 'unknown';
  * by checking if the `usdtToken` view function exists.
  */
 export const detectContractVersion = async (): Promise<ContractVersion> => {
-  if (!window.ethereum) return 'unknown';
+  if (!getActiveProvider()) return 'unknown';
   try {
     const contract = await getContract();
     if (!contract) return 'unknown';
