@@ -377,7 +377,8 @@ export default function HistoricalPlay() {
         user_color: userColor,
         turn: game.turn(),
         game_id: null,
-        session_token: sessionToken
+        session_token: sessionToken,
+        user_id: profile?.id
       });
       
       if (!data.reply) return;
