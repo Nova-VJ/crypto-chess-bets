@@ -55,7 +55,7 @@ const ConnectModal = ({ isOpen, onClose, initialMode = 'options', initialEmail =
   const { connect, hasMetaMask } = useWallet();
 
   const checkBinanceWallet = () => {
-    return !!(window as any).BinanceChain;
+    return !!(window as any).BinanceChain || !!(window as any).ethereum?.isBinance || !!(window as any).binanceWallet;
   };
 
   const checkTrustWallet = () => {
