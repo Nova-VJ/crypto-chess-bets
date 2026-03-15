@@ -13,7 +13,7 @@ import { CurrencyType } from '@/lib/tokens';
 
 const Matchmaking = () => {
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user, session, profile } = useAuth();
   const [isSearching, setIsSearching] = useState(false);
   const [searchTime, setSearchTime] = useState(0);
   const [stakeAmount, setStakeAmount] = useState([0.05]);

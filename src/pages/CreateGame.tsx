@@ -45,12 +45,10 @@ const CreateGame = () => {
   const { isV2, supportsUSDT } = useContractVersion();
 
   const handleCreate = async () => {
-    if (!user) {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        toast.error('Debes iniciar sesión o conectar tu wallet');
-        return;
-      }
+    const effectiveUser = user ?? session?.user;
+    if (!effectiveUser) {
+      toast.error('Debes iniciar sesión o conectar tu wallet');
+      return;
     }
 
     const minWager = paymentMethod === 'web3'
