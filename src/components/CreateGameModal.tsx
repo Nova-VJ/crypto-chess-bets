@@ -42,11 +42,11 @@ const CreateGameModal = ({ open, onOpenChange, onCreateGame }: CreateGameModalPr
   
   const { isConnected: isWalletConnected, isBSC, switchToBSC, chainId } = useWallet();
   const { createGame, isLoading, isContractDeployed } = useContract();
-  const { isAuthenticated, profile, user, refreshProfile } = useAuth();
-
-  const isConnected = isWalletConnected || isAuthenticated;
+  const { user, profile, isAuthenticated, refreshProfile } = useAuth();
   const currentBalance = currency === 'USDT' ? (profile?.balance_usdt || 0) : (profile?.balance || 0);
   const hasEnoughBalance = parseFloat(stake) <= currentBalance;
+
+  const isConnected = isWalletConnected || isAuthenticated;
 
   const handleSwitchNetwork = async () => {
     const success = await switchToBSC(false);
@@ -61,8 +61,12 @@ const CreateGameModal = ({ open, onOpenChange, onCreateGame }: CreateGameModalPr
 
   const handleCreate = async () => {
     const stakeAmount = parseFloat(stake);
-    if (isNaN(stakeAmount) || stakeAmount <= 0) {
-      toast.error('Por favor ingresa una cantidad válida');
+    const minConfigApp = currency === 'USDT' ? 1 : 0.00001;
+    const minConfigContract = currency === 'USDT' ? 1 : 0.001;
+    const minRequired = paymentMethod === 'wallet' ? minConfigContract : minConfigApp;
+
+    if (isNaN(stakeAmount) || stakeAmount < minRequired) {
+      toast.error(`La apuesta mínima para ${paymentMethod === 'wallet' ? 'Smart Contract' : 'Balance'} es ${minRequired} ${currency}`);
       return;
     }
 
@@ -75,8 +79,10 @@ const CreateGameModal = ({ open, onOpenChange, onCreateGame }: CreateGameModalPr
 
     try {
       if (paymentMethod === 'balance') {
-        if (!user || !profile) {
-          toast.error('Debes iniciar sesión');
+        if (!isConnected && (!user || !profile)) {
+          toast.error('Identifícate primero', {
+            description: 'Conecta tu wallet o inicia sesión'
+          });
           return;
         }
 
@@ -90,13 +96,12 @@ const CreateGameModal = ({ open, onOpenChange, onCreateGame }: CreateGameModalPr
         const { data: game, error: gameError } = await supabase
           .from('games')
           .insert({
-            creator_id: user.id,
+            creator_id: user?.id || (profile?.id as any), // Fallback to profile ID for wallet-only
             stake_amount: stakeAmount,
             time_control: getTimeControlSeconds(timeControl),
             status: 'waiting',
             is_smart_contract: false,
-            creator_paid: true,
-            currency: currency,
+            creator_paid: true
           })
           .select()
           .single();
@@ -109,16 +114,15 @@ const CreateGameModal = ({ open, onOpenChange, onCreateGame }: CreateGameModalPr
         const { error: balanceError } = await supabase
           .from('profiles')
           .update({ [balanceField]: newBalance })
-          .eq('id', user.id);
+          .eq('id', user?.id || (profile?.id as any));
 
         if (balanceError) throw balanceError;
 
         await supabase.from('transactions').insert({
-          user_id: user.id,
-          type: 'game_stake',
+          user_id: user?.id || (profile?.id as any),
+          type: currency === 'USDT' ? 'game_stake_usdt' : 'game_stake',
           amount: stakeAmount,
-          status: 'confirmed',
-          currency: currency,
+          status: 'confirmed'
         });
 
         await refreshProfile();
@@ -130,7 +134,7 @@ const CreateGameModal = ({ open, onOpenChange, onCreateGame }: CreateGameModalPr
         onOpenChange(false);
 
       } else {
-        if (!isWalletConnected) {
+        if (!isConnected) {
           toast.error('Conecta tu wallet MetaMask');
           return;
         }
@@ -146,16 +150,16 @@ const CreateGameModal = ({ open, onOpenChange, onCreateGame }: CreateGameModalPr
         if (isContractDeployed) {
           const result = await createGame(stake, currency);
           if (result) {
-            if (user) {
+            const creatorId = user?.id || (profile?.id as any);
+            if (creatorId) {
               await supabase.from('games').insert({
-                creator_id: user.id,
+                creator_id: creatorId,
                 stake_amount: stakeAmount,
                 time_control: getTimeControlSeconds(timeControl),
                 status: 'waiting',
                 is_smart_contract: true,
                 contract_game_id: result.gameId,
-                creator_paid: true,
-                currency: currency,
+                creator_paid: true
               });
             }
             
@@ -314,9 +318,9 @@ const CreateGameModal = ({ open, onOpenChange, onCreateGame }: CreateGameModalPr
                 type="number"
                 value={stake}
                 onChange={(e) => setStake(e.target.value)}
-                placeholder="0.01"
-                step={currency === 'USDT' ? '1' : '0.001'}
-                min="0"
+                placeholder={paymentMethod === 'wallet' && currency === 'BNB' ? "0.001" : "0.000001"}
+                step={currency === 'USDT' ? '1' : '0.000001'}
+                min={paymentMethod === 'wallet' ? (currency === 'USDT' ? '1' : '0.001') : (currency === 'USDT' ? '1' : '0.000001')}
                 className="flex-1 bg-secondary border-border"
               />
               <div className="flex items-center justify-center px-4 bg-secondary border border-border rounded-md text-sm font-medium">

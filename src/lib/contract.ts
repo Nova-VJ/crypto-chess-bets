@@ -140,9 +140,21 @@ export const createGameOnChain = async (
     await tx.wait();
 
     return { gameId, txHash: tx.hash };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating game on chain:', error);
-    return null;
+    if (error.data) console.error('Error data:', error.data);
+    if (error.reason) console.error('Error reason:', error.reason);
+    
+    // Check for user rejection explicitly
+    if (error.code === 'ACTION_REJECTED') {
+      throw new Error('Transacción rechazada por el usuario');
+    }
+    
+    if (error.message && error.message.includes('insufficient funds')) {
+      throw new Error('Fondos insuficientes para esta transacción');
+    }
+
+    throw new Error(error.reason || error.message || 'Error en la transacción blockchain');
   }
 };
 
@@ -243,6 +255,27 @@ export const withdrawBalance = async (currency: CurrencyType = 'BNB'): Promise<s
   }
 };
 
+export const getGameCreatedEvents = async (playerAddress: string): Promise<string[]> => {
+  try {
+    const contract = await getContract();
+    if (!contract) return [];
+
+    // Filter for GameCreated(bytes32 indexed gameId, address indexed player1, ...)
+    const filter = contract.filters.GameCreated(null, playerAddress);
+    
+    // Query last 10,000 blocks (reasonable range for BSC)
+    const logs = await contract.queryFilter(filter, -10000, 'latest');
+    
+    // Map logs to gameIds (Topic 1)
+    return logs.map((log: any) => log.args[0]);
+  } catch (error) {
+    console.error('Error querying events:', error);
+    return [];
+  }
+};
+
+export const getContractAddress = () => CONTRACT_ADDRESS;
+
 export const depositToPlatform = async (amount: string, currency: CurrencyType = 'BNB'): Promise<string | null> => {
   try {
     const contract = await getContract();
@@ -261,8 +294,10 @@ export const depositToPlatform = async (amount: string, currency: CurrencyType =
 
     await tx.wait();
     return tx.hash;
-  } catch (error) {
-    console.error('Error depositing:', error);
+  } catch (error: any) {
+    console.error('Error depositing to platform:', error);
+    if (error.data) console.error('Error data:', error.data);
+    if (error.reason) console.error('Error reason:', error.reason);
     return null;
   }
 };

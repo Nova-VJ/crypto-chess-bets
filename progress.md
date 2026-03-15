@@ -1,0 +1,43 @@
+Original prompt: cuando intento jugar con el maestro dice motor no conectado, arregla eso.
+
+- 2026-03-15: Se identifico el proyecto correcto en `C:\Users\patri\.gemini\antigravity\playground\exo-stellar`.
+- 2026-03-15: El frontend del proyecto esta levantado en `http://127.0.0.1:10000/`.
+- 2026-03-15: El fallo visible aparece en `historical-play` y el frontend usa `API_URL = 'http://localhost:8000'`.
+- 2026-03-15: Se confirmo que el backend del coach no estaba escuchando en `8000`; al levantarlo, `GET /api/health` respondio correctamente.
+- 2026-03-15: Se creo `src/lib/coachApi.ts` para centralizar la base del backend y dejar `/api` como default via proxy de Vite.
+- 2026-03-15: Se reemplazaron URLs hardcodeadas a `http://localhost:8000` en `HistoricalPlay`, `AICoach`, `GamificationSection`, `MasterProfile`, `Profile` y `Play`.
+- 2026-03-15: Se ajusto `HistoricalPlay` para evitar rutas duplicadas tipo `/api/api/...` tras el refactor.
+- 2026-03-15: `vite.config.ts` ahora usa `127.0.0.1:10000`, `strictPort: true` y proxy hacia `127.0.0.1:8000`.
+- 2026-03-15: `package.json` ahora incluye `dev:web`, `dev:coach` y un `dev` combinado via `scripts/dev.mjs`.
+- 2026-03-15: Verificacion completada con `npm run build` y con `GET http://127.0.0.1:10000/api/health -> {"status":"ok","gemini":true}`.
+- 2026-03-15: El cliente Playwright de la skill no pudo ejecutarse directamente porque el paquete `playwright` no esta instalado localmente en este repo; se verifico por build y por requests reales.
+- 2026-03-15: Se detecto que el chat del maestro fallaba por un desfase de esquema en `coach.db`: faltaban `coach_messages.game_id` y `coach_messages.session_token`.
+- 2026-03-15: `coach-engine/database.py` ahora asegura esas columnas de forma idempotente en SQLite sin recrear tablas.
+- 2026-03-15: `coach-engine/main.py` ya no usa `request.get(...)` sobre `EvaluationRequest`; ahora `session_token` es un campo tipado opcional.
+- 2026-03-15: `coach-engine/main.py` ahora resuelve `/api/play/move` con `asyncio.to_thread(...)` + `analyzer.get_persona_move_sync(...)`, evitando el fallo de subprocess async en Windows.
+- 2026-03-15: `GamificationSection` y `Profile` quedaron alineados con `/api/user/progress` y `/api/gamification/summary`, usando `Authorization` en vez de rutas con `/:userId`.
+- 2026-03-15: `AICoach` ya no se queda esperando indefinidamente si aun no existe `session.access_token` y el panel flotante del chat se adapto para no cortarse en viewports estrechos.
+- 2026-03-15: Pruebas directas completadas: consulta SQLAlchemy a `CoachMessage`, `analyzer.get_persona_move_sync(...)`, `main.play_move(...)`, y construccion de `EvaluationRequest(session_token='abc')`.
+- 2026-03-15: Se amplio el esquema de `coach-engine/database.py` con memoria persistente y trazabilidad: `games.session_token`, `games.opening_family`, nuevos metadatos en `coach_messages`, y tablas `coach_memory_profiles` + `coach_reference_log`.
+- 2026-03-15: `coach-engine/main.py` ahora expone un `ChatRequest` tipado y una nueva tuberia de memoria para `/api/chat`: contexto actual, perfil persistente, recuerdos recuperados, referencia historica verificada, deduplicacion y refresco asincrono del perfil.
+- 2026-03-15: El nuevo flujo de chat ya evita mezclar partida vieja con presente en un saludo pre-partida; smoke test directo devolvio una respuesta coherente sobre la posicion inicial sin inventar amenazas.
+- 2026-03-15: `HistoricalPlay.tsx` ahora usa `session_token` real desde pre-partida hasta partida, elimina `game_id: 999999`, manda `interaction_mode` / `message_kind` / `move_count` / `pgn`, y reutiliza la misma sesion entre consulta previa y duelo.
+- 2026-03-15: `AICoach.tsx` ahora separa historiales visuales por coach, usa `interaction_mode=coach_room`, y recupera historiales por coach sin mezclar el hilo global con el de `HistoricalPlay`.
+- 2026-03-15: Verificaciones nuevas: `python -m py_compile` sobre `database.py` y `main.py`, `npm run build`, smoke tests directos del backend en el `coach-engine` real, y carga visual via Playwright MCP en `/historical-play` y `/coach` sin errores de consola.
+- 2026-03-15: `HistoricalPlay.tsx` ya no persiste sesiones inactivas en `localStorage`; al terminar una partida se limpia `session_token` y el chat visible, evitando que una partida nueva reutilice el hilo anterior.
+- 2026-03-15: `HistoricalPlay.tsx` ahora siempre crea un `session_token` nuevo al iniciar duelo y vacia el chat visible del maestro para que cada partida empiece limpia, mientras la memoria completa sigue guardada en backend.
+- 2026-03-15: Se corrigio el flujo de jugada del motor en `HistoricalPlay.tsx`: la jugada del maestro ahora se aplica sobre la posicion exacta analizada (`sourcePgn`/`sourceFen`) en vez de reconstruirse desde un estado React potencialmente atrasado.
+- 2026-03-15: Se elimino la duplicacion de disparos del motor al depender del auto-trigger por turno en lugar de invocar `makeEngineMove(...)` manualmente desde `onDrop` y `startGame`.
+- 2026-03-15: `coach-engine/main.py` ahora expone `/api/history/sessions` y `/api/history/sessions/{session_key}` para navegar historial manual por partida o consulta guardada, incluyendo fecha, coach, resultado y mensajes de la sesion.
+- 2026-03-15: `Profile.tsx` ahora carga sesiones historicas combinadas (partidas + conversaciones), permite filtrarlas por coach y muestra un dialogo con el detalle de lo hablado en cada sesion.
+- 2026-03-15: Smoke test dirigido de historial: se insertaron temporalmente una consulta sola y una partida con chat para `smoke-user-history`; `/api/history/sessions` devolvio 2 entradas (`game`, `conversation`) y el detalle de partida devolvio 2 mensajes. Los datos temporales se limpiaron despues de la prueba.
+- 2026-03-15: Verificacion adicional del motor: `main.play_move(...)` sobre la posicion tras `1.e4` devolvio `c7c6`, confirmando que el backend sigue generando jugadas validas.
+- 2026-03-15: El cliente Playwright del skill sigue sin correr localmente por falta del paquete `playwright`; se sustituyo la comprobacion visual por Playwright MCP, confirmando carga sin errores nuevos en `/historical-play` y `/profile`.
+- 2026-03-15: Se detecto que los procesos activos en `10000/8000` seguian siendo de una sesion anterior (02:37) y no tenian las ultimas correcciones cargadas. Se reiniciaron ambos servicios manualmente levantando `vite` y `uvicorn` por separado.
+- 2026-03-15: `npm run dev` combinado falla en este entorno con `spawn EINVAL` desde `scripts/dev.mjs`; como mitigacion operativa, la app queda levantada con frontend y backend separados.
+- 2026-03-15: Se reforzo `HistoricalPlay.tsx` con un disparo directo y deduplicado del motor por FEN (`pendingEngineFenRef`) para evitar que el maestro se quede congelado si el `useEffect` de turno no se dispara en algun render concreto.
+- 2026-03-15: Verificacion posterior al refuerzo: `main.play_move(...)` sobre la misma posicion tras `1.e4` devolvio `e7e5` con los servicios recien levantados.
+- 2026-03-15: `coach-engine/main.py` ahora convierte recuerdos de memoria a referencias temporales humanas (`hoy a las HH:MM`, `ayer`, `hace N dias`) en lugar de repetir fechas frias del calendario dentro del chat del maestro.
+- 2026-03-15: Se dejo `coach-engine` listo para hosting Linux externo: deteccion de Stockfish via entorno/sistema, CORS configurable por `CORS_ALLOWED_ORIGINS`, `PORT` dinamico y plantilla `render.yaml` + `coach-engine/Dockerfile` para desplegar el backend en Render.
+- TODO: Si el usuario quiere post-partida conversacional en la misma vista, conectar explicitamente `interaction_mode='post_game'` en un flujo de chat posterior al modal de evaluacion.
+- TODO: Limpiar el bloque legado muerto que queda al final de `chat_with_coach` en `main.py` ahora que la ruta nueva ya retorna antes y esta funcionando.

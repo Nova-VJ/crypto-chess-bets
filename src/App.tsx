@@ -12,6 +12,13 @@ import Rankings from "./pages/Rankings";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import Friends from "./pages/Friends";
+import Rules from "./pages/Rules";
+import CreateGame from "./pages/CreateGame";
+import CoachAI from "./pages/CoachAI";
+import HistoricalPlay from "./pages/HistoricalPlay";
+import MasterProfile from "./pages/MasterProfile";
+import AdminTestGames from "./pages/AdminTestGames";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,12 +33,19 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/lobby" element={<Lobby />} />
-            <Route path="/play" element={<Play />} />
+            <Route path="/create-game" element={<CreateGame />} />
+            <Route path="/play/:id" element={<Play />} />
             <Route path="/matchmaking" element={<Matchmaking />} />
             <Route path="/rankings" element={<Rankings />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/friends" element={<Friends />} />
+            <Route path="/rules" element={<Rules />} />
+            <Route path="/coach" element={<CoachAI />} />
+            <Route path="/historical-play" element={<HistoricalPlay />} />
+            <Route path="/master-profile/:id" element={<MasterProfile />} />
+            <Route path="/admin/test-games" element={<AdminTestGames />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

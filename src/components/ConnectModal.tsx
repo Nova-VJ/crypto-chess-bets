@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Wallet, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Wallet, Mail, Eye, EyeOff, Loader2, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,10 +8,19 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/hooks/useWallet';
 import { switchToBSC } from '@/lib/contract';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import BinanceDeposit from './BinanceDeposit';
 
 interface ConnectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialMode?: 'options' | 'email-login' | 'email-signup' | 'forgot-password' | 'binance-qr';
+  initialEmail?: string;
 }
 
 type WalletType = 'metamask' | 'binance' | 'trust';
@@ -25,15 +34,24 @@ interface WalletOption {
   connect: () => Promise<boolean>;
 }
 
-const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
-  const [mode, setMode] = useState<'options' | 'email-login' | 'email-signup'>('options');
-  const [email, setEmail] = useState('');
+const ConnectModal = ({ isOpen, onClose, initialMode = 'options', initialEmail = '' }: ConnectModalProps) => {
+  const [mode, setMode] = useState<'options' | 'email-login' | 'email-signup' | 'forgot-password' | 'binance-qr'>(initialMode);
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('👤');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  const { signUp, signIn } = useAuth();
+  // Update state when modal opens with new props
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      if (initialEmail) setEmail(initialEmail);
+    }
+  }, [isOpen, initialMode, initialEmail]);
+  
+  const { signUp, signIn, resetPassword } = useAuth();
   const { connect, hasMetaMask } = useWallet();
 
   const checkBinanceWallet = () => {
@@ -106,6 +124,9 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
     
     const success = await connect();
     if (success) {
+      toast.info("Vinculando Perfil...", {
+        description: "Se está creando tu cuenta automáticamente vinculada a tu wallet."
+      });
       try {
         await switchToBSC(false);
         toast.success('MetaMask conectada a BNB Smart Chain', {
@@ -160,7 +181,12 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
 
     try {
       if (mode === 'email-signup') {
-        const { error } = await signUp(email, password, displayName);
+        if (!displayName) {
+          toast.error("Por favor elige un nombre de usuario");
+          setIsLoading(false);
+          return;
+        }
+        const { error } = await signUp(email, password, displayName, avatarUrl);
         if (error) {
           if (error.message.includes('already registered')) {
             toast.error('Este correo ya está registrado', {
@@ -175,7 +201,7 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
           });
           onClose();
         }
-      } else {
+      } else if (mode === 'email-login') {
         const { error } = await signIn(email, password);
         if (error) {
           toast.error('Error al iniciar sesión', {
@@ -184,6 +210,16 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
         } else {
           toast.success('¡Bienvenido de vuelta!');
           onClose();
+        }
+      } else if (mode === 'forgot-password') {
+        const { error } = await resetPassword(email);
+        if (error) {
+          toast.error('Error al enviar correo', { description: error.message });
+        } else {
+          toast.success('Correo enviado', {
+            description: 'Revisa tu bandeja de entrada para restablecer tu contraseña',
+          });
+          setMode('email-login');
         }
       }
     } finally {
@@ -202,8 +238,6 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
     resetModal();
     onClose();
   };
-
-  if (!isOpen) return null;
 
   const renderWalletIcon = (wallet: WalletOption) => {
     if (wallet.id === 'metamask') {
@@ -233,32 +267,18 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
   };
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-        onClick={handleClose}
-      >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="glass-card w-full max-w-md p-6 max-h-[85vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-xl font-bold">
-              {mode === 'options' && 'Conectar'}
-              {mode === 'email-login' && 'Iniciar Sesión'}
-              {mode === 'email-signup' && 'Crear Cuenta'}
-            </h2>
-            <Button variant="ghost" size="icon" onClick={handleClose}>
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="sm:max-w-md bg-card border-border p-6 shadow-2xl flex flex-col gap-0 overflow-hidden max-h-[90vh] z-[100]">
+        <DialogHeader className="mb-6">
+          <DialogTitle className="text-xl font-bold">
+            {mode === 'options' && 'Conectar'}
+            {mode === 'email-login' && 'Iniciar Sesión'}
+            {mode === 'email-signup' && 'Crear Cuenta'}
+            {mode === 'forgot-password' && 'Recuperar Contraseña'}
+          </DialogTitle>
+        </DialogHeader>
 
+        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar pb-2">
           {mode === 'options' && (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground mb-3">
@@ -271,11 +291,11 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
                   <Button
                     key={wallet.id}
                     variant="outline"
-                    className="w-full justify-start h-14 text-left"
+                    className="w-full justify-start h-14 text-left group hover:border-primary/50 transition-all font-sans"
                     onClick={() => handleWalletConnect(wallet)}
                     disabled={isLoading}
                   >
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${wallet.color} flex items-center justify-center mr-3`}>
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${wallet.color} flex items-center justify-center mr-3 group-hover:scale-105 transition-transform`}>
                       {renderWalletIcon(wallet)}
                     </div>
                     <div className="flex-1">
@@ -294,20 +314,43 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
                   <div className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="bg-card px-2 text-muted-foreground">o continuar con</span>
+                  <span className="bg-card px-2 text-muted-foreground uppercase tracking-wider font-semibold">o continuar con</span>
+                </div>
+              </div>
+
+              <Button
+                variant="outline"
+                className="w-full justify-start h-14 group hover:border-primary/50 transition-all mb-2 font-sans"
+                onClick={() => setMode('binance-qr')}
+              >
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center mr-3 group-hover:scale-105 transition-transform">
+                  <QrCode className="w-5 h-5 text-black" />
+                </div>
+                <div className="text-left font-sans">
+                  <p className="font-medium text-yellow-500">Depósito Binance (QR)</p>
+                  <p className="text-xs text-muted-foreground">Sin extensión • Ideal móvil</p>
+                </div>
+              </Button>
+
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-card px-2 text-muted-foreground uppercase tracking-wider font-semibold">o</span>
                 </div>
               </div>
 
               {/* Email Options */}
               <Button
                 variant="outline"
-                className="w-full justify-start h-14"
+                className="w-full justify-start h-14 group hover:border-primary/50 transition-all mb-2 font-sans"
                 onClick={() => setMode('email-login')}
               >
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mr-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mr-3 group-hover:scale-105 transition-transform">
                   <Mail className="w-5 h-5 text-primary-foreground" />
                 </div>
-                <div className="text-left">
+                <div className="text-left font-sans">
                   <p className="font-medium">Correo Electrónico</p>
                   <p className="text-xs text-muted-foreground">Inicia sesión o crea cuenta</p>
                 </div>
@@ -315,19 +358,43 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
             </div>
           )}
 
-          {(mode === 'email-login' || mode === 'email-signup') && (
+          {mode === 'binance-qr' && (
+            <BinanceDeposit onBack={() => setMode('options')} />
+          )}
+
+          {(mode === 'email-login' || mode === 'email-signup' || mode === 'forgot-password') && (
             <form onSubmit={handleEmailAuth} className="space-y-4">
               {mode === 'email-signup' && (
-                <div className="space-y-2">
-                  <Label htmlFor="displayName">Nombre de usuario</Label>
-                  <Input
-                    id="displayName"
-                    type="text"
-                    placeholder="Tu nombre de jugador"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label>Elige tu Avatar</Label>
+                    <div className="flex flex-wrap gap-2 justify-center py-2">
+                      {['👤', '🦁', '🦅', '🐺', '🦊', '🐲', '⚔️', '🛡️', '👑', '💎'].map(emoji => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => setAvatarUrl(emoji)}
+                          className={`w-10 h-10 flex items-center justify-center rounded-xl text-xl transition-all ${
+                            avatarUrl === emoji ? 'bg-primary border-2 border-white/20 scale-110' : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                          }`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="displayName">Nickname</Label>
+                    <Input
+                      id="displayName"
+                      type="text"
+                      placeholder="Tu nombre"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      required
+                    />
+                  </div>
+                </>
               )}
               
               <div className="space-y-2">
@@ -342,53 +409,68 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </Button>
+              {mode !== 'forgot-password' && (
+                <div className="space-y-2 border-t border-white/5 pt-4">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="password">Contraseña</Label>
+                    {mode === 'email-login' && (
+                      <button 
+                        type="button" 
+                        onClick={() => setMode('forgot-password')}
+                        className="text-[10px] text-zinc-500 hover:text-primary uppercase font-bold tracking-widest"
+                      >
+                        ¿Olvidaste tu contraseña?
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full btn-primary-glow font-sans h-12" disabled={isLoading}>
                 {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {mode === 'email-login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
+                {mode === 'email-login' && 'Iniciar Sesión'}
+                {mode === 'email-signup' && 'Crear Cuenta'}
+                {mode === 'forgot-password' && 'Enviar Link de Recuperación'}
               </Button>
 
-              <div className="text-center text-sm">
+              <div className="text-center text-sm font-sans pt-2">
                 {mode === 'email-login' ? (
-                  <p>
+                  <p className="text-zinc-500">
                     ¿No tienes cuenta?{' '}
                     <button
                       type="button"
-                      className="text-primary hover:underline"
+                      className="text-primary hover:underline font-bold"
                       onClick={() => setMode('email-signup')}
                     >
                       Regístrate
                     </button>
                   </p>
                 ) : (
-                  <p>
+                  <p className="text-zinc-500">
                     ¿Ya tienes cuenta?{' '}
                     <button
                       type="button"
-                      className="text-primary hover:underline"
+                      className="text-primary hover:underline font-bold"
                       onClick={() => setMode('email-login')}
                     >
                       Inicia sesión
@@ -400,16 +482,16 @@ const ConnectModal = ({ isOpen, onClose }: ConnectModalProps) => {
               <Button
                 type="button"
                 variant="ghost"
-                className="w-full"
+                className="w-full font-sans text-xs text-zinc-600 hover:text-white"
                 onClick={() => setMode('options')}
               >
-                ← Volver a opciones
+                ← Volver a opciones de conexión
               </Button>
             </form>
           )}
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

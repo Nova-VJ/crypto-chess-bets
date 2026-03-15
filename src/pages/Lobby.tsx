@@ -1,309 +1,450 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, RefreshCw, Filter, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import AppHeader from '@/components/AppHeader';
-import BottomNav from '@/components/BottomNav';
-import GameCard from '@/components/GameCard';
-import CreateGameModal from '@/components/CreateGameModal';
-import { toast } from 'sonner';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Plus, 
+  Search, 
+  Users, 
+  Trophy, 
+  Clock, 
+  Filter, 
+  ChevronRight,
+  Globe,
+  Zap,
+  Swords,
+  Coins
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import Header from '@/components/Header';
+import { Button } from '@/components/ui/button';
+import { cancelGameOnChain } from '@/lib/contract';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import AcceptanceModal from '@/components/AcceptanceModal';
 
-interface Game {
+interface LobbyGame {
   id: string;
-  creator: string;
-  stake: number;
+  creator_user_id: string;
+  creator: {
+    display_name: string;
+    avatar_url: string;
+    country_code: string;
+    rating_blitz: number;
+    rating_rapid: number;
+    rating_bullet: number;
+    games_played: number;
+  };
+  time_control_minutes: number;
+  increment_seconds: number;
+  mode: 'bullet' | 'blitz' | 'rapid' | 'custom';
+  status: 'waiting' | 'pending_accept';
+  wager_amount: number;
   currency: string;
-  timeControl: string;
-  status: 'waiting' | 'playing' | 'finished';
+  contract_game_id: string;
+  payment_method: 'web3' | 'internal';
 }
 
 const Lobby = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const { user, profile, refreshProfile } = useAuth();
+  const [games, setGames] = useState<LobbyGame[]>([]);
+  const [activeHandshakeGame, setActiveHandshakeGame] = useState<any>(null);
+  const [filterMode, setFilterMode] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [games, setGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const formatTimeControl = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const inc = seconds % 60;
-    return inc > 0 ? `${mins}+${inc}` : `${mins}+0`;
-  };
-
-  const loadGames = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('games')
-        .select('*, profiles!games_creator_id_fkey(display_name, wallet_address)')
-        .in('status', ['waiting', 'playing'])
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-
-      const mappedGames: Game[] = (data || []).map((g: any) => ({
-        id: g.id,
-        creator: g.profiles?.display_name || g.profiles?.wallet_address?.slice(0, 6) + '...' + g.profiles?.wallet_address?.slice(-4) || 'Anónimo',
-        stake: g.stake_amount,
-        currency: g.currency || 'BNB',
-        timeControl: formatTimeControl(g.time_control),
-        status: g.status === 'waiting' ? 'waiting' : g.status === 'playing' ? 'playing' : 'finished',
-      }));
-
-      setGames(mappedGames);
-    } catch (error) {
-      console.error('Error loading games:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [isCancelling, setIsCancelling] = useState(false);
+  const cancelledGameIdsRef = React.useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    loadGames();
-
-    // Subscribe to realtime changes
+    fetchGames();
+    checkActiveHandshake();
+    
+    // Subscribe to lobby updates
     const channel = supabase
-      .channel('lobby-games')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'games' },
-        () => {
-          loadGames();
-        }
-      )
+      .channel('lobby-updates')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'lobby_games',
+        filter: user ? `creator_user_id=eq.${user.id}` : undefined
+      }, (payload) => {
+        fetchGames();
+        handleLobbyChange(payload);
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'lobby_games',
+        filter: user ? `joiner_user_id=eq.${user.id}` : undefined
+      }, (payload) => {
+        fetchGames();
+        handleLobbyChange(payload);
+      })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'lobby_games',
+        filter: 'status=eq.waiting'
+      }, () => {
+        fetchGames();
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [user]);
 
-  const handleCreateGame = (stake: number, currency: string, timeControl: string) => {
-    loadGames();
+  const handleLobbyChange = (payload: any) => {
+    const game = payload.new;
+    if (game.status === 'pending_accept') {
+      setActiveHandshakeGame(game);
+    } else if (game.status === 'in_progress') {
+      navigate(`/play/${game.id}`);
+    } else if (game.status === 'cancelled' || game.status === 'expired') {
+      setActiveHandshakeGame(null);
+      // Also remove from visible list
+      setGames(prev => prev.filter(g => g.id !== game.id));
+    }
   };
 
-  const handleJoinGame = async (gameId: string) => {
+  const checkActiveHandshake = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('lobby_games')
+      .select('*')
+      .or(`creator_user_id.eq.${user.id},joiner_user_id.eq.${user.id}`)
+      .eq('status', 'pending_accept')
+      .maybeSingle();
+    
+    if (data) {
+      setActiveHandshakeGame(data);
+    }
+  };
+
+  const fetchGames = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('lobby_games')
+      .select(`
+        *,
+        creator:profiles!creator_user_id (
+          display_name,
+          avatar_url,
+          country_code,
+          rating_blitz,
+          rating_rapid,
+          rating_bullet,
+          games_played
+        )
+      `)
+      .eq('status', 'waiting')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching games:', error);
+      toast.error('Error al cargar partidas', { 
+        description: error.message 
+      });
+    } else {
+      // Filter out any games that were just cancelled locally (prevents race condition)
+      const filtered = (data as any[]).filter(
+        (g: any) => !cancelledGameIdsRef.current.has(g.id)
+      );
+      setGames(filtered as any);
+    }
+    setIsLoading(false);
+  };
+
+  const handleJoin = async (gameId: string) => {
     if (!user) {
-      toast.error('Debes iniciar sesión para unirte');
+      toast.error('Debes iniciar sesión para jugar');
       return;
     }
 
-    try {
-      const { data: game, error: fetchError } = await supabase
-        .from('games')
-        .select('*')
-        .eq('id', gameId)
-        .single();
+    const { error } = await supabase
+      .from('lobby_games')
+      .update({
+        joiner_user_id: user.id,
+        status: 'pending_accept',
+        accept_deadline_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        joiner_rating_snapshot: profile?.rating_blitz || 1200,
+        joiner_games_played_snapshot: profile?.games_played || 0
+      })
+      .eq('id', gameId);
 
-      if (fetchError) throw fetchError;
-
-      if (game.creator_id === user.id) {
-        toast.error('No puedes unirte a tu propia partida');
-        return;
-      }
-
-      const { error } = await supabase
-        .from('games')
-        .update({ 
-          opponent_id: user.id, 
-          status: 'playing',
-          started_at: new Date().toISOString(),
-          opponent_paid: true
-        })
-        .eq('id', gameId)
-        .eq('status', 'waiting');
-
-      if (error) throw error;
-
-      // Deduct stake from opponent balance
-      const currency = (game as any).currency || 'BNB';
-      const balanceField = currency === 'USDT' ? 'balance_usdt' : 'balance';
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select(balanceField)
-        .eq('id', user.id)
-        .single();
-
-      if (profile) {
-        const currentBal = (profile as any)[balanceField] || 0;
-        if (currentBal < game.stake_amount) {
-          toast.error(`Balance insuficiente de ${currency}`);
-          return;
-        }
-
-        await supabase
-          .from('profiles')
-          .update({ [balanceField]: currentBal - game.stake_amount })
-          .eq('id', user.id);
-
-        await supabase.from('transactions').insert({
-          user_id: user.id,
-          type: 'game_stake',
-          amount: game.stake_amount,
-          status: 'confirmed',
-          currency: currency,
-        });
-      }
-
-      toast.success('¡Te has unido a la partida!');
-      navigate('/play');
-    } catch (error: any) {
-      console.error('Error joining game:', error);
-      toast.error('Error al unirse a la partida');
+    if (error) {
+      toast.error('No se pudo unir a la partida');
+    } else {
+      toast.success('Solicitud enviada. Esperando confirmación...');
     }
   };
 
-  const filteredGames = games.filter(
-    (game) =>
-      game.creator.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      game.currency.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleCancelGame = async (game: LobbyGame) => {
+    setIsCancelling(true);
+    
+    // Immediately remove from UI
+    cancelledGameIdsRef.current.add(game.id);
+    setGames(prev => prev.filter(g => g.id !== game.id));
+    
+    try {
+      // 1. Handle refund based on payment method
+      if (game.contract_game_id && game.payment_method === 'web3') {
+        // Web3: Cancel on blockchain (contract refunds to playerBalances mapping)
+        toast.loading('Cancelando en blockchain y reembolsando...', { id: 'cancel' });
+        const tx = await cancelGameOnChain(game.contract_game_id);
+        if (!tx) throw new Error('Fallo al cancelar en la red blockchain');
+        toast.success('Contrato cancelado. Fondos devueltos a tu balance en el contrato. Usa "Retirar" en tu perfil para enviarlos a tu wallet.', { id: 'cancel' });
+      } else if (game.payment_method === 'internal' || !game.contract_game_id) {
+        // Internal: Refund to profile balance in Supabase
+        toast.loading('Reembolsando saldo...', { id: 'cancel' });
+        const balanceField = game.currency === 'USDT' ? 'balance_usdt' : 'balance';
+        const currentBalance = game.currency === 'USDT' ? (profile?.balance_usdt || 0) : (profile?.balance || 0);
+        const newBalance = currentBalance + game.wager_amount;
 
-  const waitingGames = filteredGames.filter((g) => g.status === 'waiting');
-  const activeGames = filteredGames.filter((g) => g.status === 'playing');
+        const { error: refundError } = await supabase
+          .from('profiles')
+          .update({ [balanceField]: newBalance })
+          .eq('id', user!.id);
+
+        if (refundError) {
+          throw new Error('Error al reembolsar: ' + refundError.message);
+        }
+        toast.success(`Reembolsado ${game.wager_amount} ${game.currency} a tu cuenta GameBet.`, { id: 'cancel' });
+      }
+
+      // 2. Update game status in DB
+      const { error } = await supabase
+        .from('lobby_games')
+        .update({ status: 'cancelled' })
+        .eq('id', game.id);
+
+      if (error) throw error;
+
+      // 3. Refresh profile to reflect updated balance
+      await refreshProfile();
+      
+      toast.info('Partida cancelada correctamente.');
+      
+      // Clear from cancelled ref after a delay (DB should be consistent by then)
+      setTimeout(() => {
+        cancelledGameIdsRef.current.delete(game.id);
+      }, 5000);
+    } catch (error: any) {
+      // Restore the game in the UI if cancel failed
+      cancelledGameIdsRef.current.delete(game.id);
+      toast.error('Error al cancelar', { id: 'cancel', description: error.message });
+      fetchGames(); // Re-fetch to restore
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const filteredGames = games.filter(game => {
+    const matchesMode = filterMode === 'all' || game.mode === filterMode;
+    const matchesSearch = game.creator?.display_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesMode && matchesSearch;
+  });
 
   return (
-    <div className="min-h-screen bg-background pb-24 pt-20">
-      <AppHeader />
+    <div className="min-h-screen bg-[#0a0a0a] text-zinc-300">
+      <Header />
 
-      <main className="container mx-auto px-4 py-4">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-4"
-        >
-          <h1 className="text-xl font-serif font-bold">
-            Lobby de <span className="gradient-text">Partidas</span>
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Encuentra una partida o crea la tuya • BNB & USDT
-          </p>
-        </motion.div>
+      <main className="container mx-auto px-4 pt-24 pb-12 max-w-7xl">
+        <div className="flex flex-col lg:flex-row gap-8">
+          
+          {/* Sidebar / Filters */}
+          <div className="w-full lg:w-72 space-y-6">
+            <div className="glass-card p-6 border-zinc-800/50 bg-zinc-900/20 space-y-6">
+              <div className="space-y-2">
+                <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">Filtrar por</h2>
+                <Tabs value={filterMode} onValueChange={setFilterMode} className="w-full">
+                  <TabsList className="grid grid-cols-2 bg-black/40 border border-zinc-800 p-1 h-auto">
+                    <TabsTrigger value="all" className="text-xs py-2 data-[state=active]:bg-primary">Todas</TabsTrigger>
+                    <TabsTrigger value="bullet" className="text-xs py-2">Bullet</TabsTrigger>
+                    <TabsTrigger value="blitz" className="text-xs py-2">Blitz</TabsTrigger>
+                    <TabsTrigger value="rapid" className="text-xs py-2">Rapid</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
 
-        {/* Search & Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="flex gap-2 mb-4"
-        >
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9 bg-secondary border-border text-sm"
-            />
-          </div>
-          <Button variant="outline" size="icon" className="h-9 w-9">
-            <Filter className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="icon" className="h-9 w-9" onClick={loadGames}>
-            <RefreshCw className="w-4 h-4" />
-          </Button>
-        </motion.div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <Input 
+                  placeholder="Buscar jugador..." 
+                  className="bg-black/40 border-zinc-800 pl-10 focus:ring-primary"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
 
-        {/* Create Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="mb-4"
-        >
-          <Button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="w-full btn-primary-glow bg-primary h-10"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Crear Partida
-          </Button>
-        </motion.div>
-
-        {/* Waiting Games */}
-        <motion.section
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="mb-6"
-        >
-          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            Disponibles ({waitingGames.length})
-          </h2>
-          {waitingGames.length > 0 ? (
-            <div className="space-y-3">
-              {waitingGames.map((game, index) => (
-                <motion.div
-                  key={game.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 * index }}
+              <div className="pt-4 border-t border-zinc-800">
+                <Button 
+                  className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold gap-2 shadow-[0_0_20px_rgba(var(--primary-rgb),0.2)]"
+                  onClick={() => navigate('/create-game')}
                 >
-                  <GameCard {...game} onJoin={() => handleJoinGame(game.id)} />
-                </motion.div>
-              ))}
-            </div>
-          ) : (
-            <div className="glass-card p-6 text-center">
-              <p className="text-sm text-muted-foreground mb-3">
-                {isLoading ? 'Cargando partidas...' : 'No hay partidas disponibles'}
-              </p>
-              {!isLoading && (
-                <Button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  size="sm"
-                  className="bg-primary"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Crear partida
+                  <Plus className="w-5 h-5" />
+                  CREAR PARTIDA
                 </Button>
-              )}
+              </div>
             </div>
-          )}
-        </motion.section>
 
-        {/* Active Games */}
-        {activeGames.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              En Curso ({activeGames.length})
-            </h2>
-            <div className="space-y-3">
-              {activeGames.map((game, index) => (
-                <motion.div
-                  key={game.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 * index }}
-                >
-                  <GameCard {...game} onWatch={() => {}} />
-                </motion.div>
-              ))}
+            {/* Quick Stats */}
+            <div className="glass-card p-6 border-zinc-800/50 bg-zinc-900/20">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-500 mb-4">Plataforma</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="flex items-center gap-2 text-zinc-400">
+                    <Users className="w-4 h-4 text-primary" /> En línea
+                  </span>
+                  <span className="font-mono text-white">1,204</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="flex items-center gap-2 text-zinc-400">
+                    <Zap className="w-4 h-4 text-yellow-500" /> Partidas hoy
+                  </span>
+                  <span className="font-mono text-white">452</span>
+                </div>
+              </div>
             </div>
-          </motion.section>
-        )}
+          </div>
+
+          {/* Main Lobby Area */}
+          <div className="flex-1 space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-2xl font-serif font-bold text-white flex items-center gap-3">
+                <Swords className="w-7 h-7 text-primary" />
+                Partidas Disponibles
+              </h1>
+              <div className="flex gap-2 text-[10px] uppercase font-bold text-zinc-500">
+                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-success animate-pulse" /> Tiempo Real</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <AnimatePresence mode="popLayout">
+                {isLoading ? (
+                  Array(6).fill(0).map((_, i) => (
+                    <div key={i} className="h-44 bg-zinc-900/50 rounded-xl border border-zinc-800 animate-pulse" />
+                  ))
+                ) : filteredGames.length > 0 ? (
+                  filteredGames.map((game) => (
+                    <motion.div
+                      layout
+                      key={game.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="glass-card group hover:border-primary/40 transition-all duration-300 bg-zinc-900/40 overflow-hidden"
+                    >
+                      <div className="p-5 flex flex-col h-full justify-between gap-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
+                                {game.creator.avatar_url ? (
+                                  <img src={game.creator.avatar_url} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <Users className="w-6 h-6 text-zinc-600" />
+                                )}
+                              </div>
+                              <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center overflow-hidden">
+                                {game.creator.country_code ? (
+                                  <img src={`https://flagcdn.com/w20/${game.creator.country_code.toLowerCase()}.png`} className="w-3 h-3 scale-150" alt="" />
+                                ) : (
+                                  <Globe className="w-2 h-2 text-zinc-500" />
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-white font-bold text-sm flex items-center gap-1 group-hover:text-primary transition-colors">
+                                {game.creator.display_name}
+                                <span className="text-[10px] text-zinc-500 font-mono">({game.creator.rating_blitz})</span>
+                              </div>
+                              <div className="text-[10px] text-zinc-500 uppercase tracking-tighter">
+                                {game.creator.games_played} partidas jugadas
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <div className="px-3 py-1 bg-black/40 rounded-full border border-zinc-800 flex items-center gap-2">
+                               <Clock className="w-3 h-3 text-primary" />
+                               <span className="text-xs font-mono text-zinc-300">
+                                 {game.time_control_minutes}+{game.increment_seconds}
+                               </span>
+                            </div>
+                            <div className={`px-3 py-1 bg-black/40 rounded-full border border-zinc-800 flex items-center gap-2 ${game.currency === 'USDT' ? 'text-green-500' : 'text-yellow-500'}`}>
+                               <Coins className="w-3 h-3" />
+                               <span className="text-xs font-mono font-bold">
+                                 {game.wager_amount} {game.currency}
+                               </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            game.mode === 'bullet' ? 'bg-orange-500/10 text-orange-500' :
+                            game.mode === 'blitz' ? 'bg-yellow-500/10 text-yellow-500' :
+                            'bg-green-500/10 text-green-500'
+                          }`}>
+                            {game.mode}
+                          </div>
+                          <div className="flex-1 h-px bg-zinc-800" />
+                        </div>
+
+                        {game.creator_user_id === user?.id ? (
+                          <Button 
+                            variant="outline"
+                            className="w-full border-destructive/30 text-destructive hover:bg-destructive hover:text-white font-bold h-10 transition-all"
+                            onClick={() => handleCancelGame(game)}
+                            disabled={isCancelling}
+                          >
+                            {isCancelling ? 'CANCELANDO...' : 'CANCELAR PARTIDA'}
+                          </Button>
+                        ) : (
+                          <Button 
+                            className="w-full bg-zinc-100 hover:bg-white text-black font-bold h-10 group-hover:bg-primary group-hover:text-white transition-all"
+                            onClick={() => handleJoin(game.id)}
+                          >
+                            UNIRME
+                          </Button>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="col-span-full py-20 text-center space-y-4">
+                    <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto text-zinc-700">
+                      <Swords className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-bold">No hay partidas disponibles</h3>
+                      <p className="text-sm text-zinc-500">¿Por qué no creas tú la primera?</p>
+                    </div>
+                    <Button variant="outline" className="border-zinc-800 text-zinc-400" onClick={() => navigate('/create-game')}>
+                      <Plus className="w-4 h-4 mr-2" /> Crear partida
+                    </Button>
+                  </div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
       </main>
 
-      <CreateGameModal
-        open={isCreateModalOpen}
-        onOpenChange={setIsCreateModalOpen}
-        onCreateGame={handleCreateGame}
-      />
-
-      <BottomNav />
+      <AnimatePresence>
+        {activeHandshakeGame && (
+          <AcceptanceModal 
+            lobbyGame={activeHandshakeGame} 
+            onClose={() => setActiveHandshakeGame(null)}
+            onStart={(id) => navigate(`/play/${id}`)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

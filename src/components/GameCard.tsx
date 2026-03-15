@@ -12,6 +12,7 @@ interface GameCardProps {
   status: 'waiting' | 'playing' | 'finished';
   onJoin?: () => void;
   onWatch?: () => void;
+  onCancel?: () => void;
 }
 
 const GameCard = ({
@@ -22,6 +23,7 @@ const GameCard = ({
   status,
   onJoin,
   onWatch,
+  onCancel,
 }: GameCardProps) => {
   const statusColors = {
     waiting: 'bg-success/20 text-success border-success/30',
@@ -70,10 +72,18 @@ const GameCard = ({
 
       <div className="flex gap-2">
         {status === 'waiting' && (
-          <Button onClick={onJoin} className="flex-1 bg-primary hover:bg-primary/90">
-            <Users className="w-4 h-4 mr-2" />
-            Unirse
-          </Button>
+          <>
+            {onCancel ? (
+              <Button onClick={onCancel} variant="destructive" className="flex-1 w-full pulse-animation">
+                Cancelar Partida
+              </Button>
+            ) : (
+              <Button onClick={onJoin} className="flex-1 bg-primary hover:bg-primary/90">
+                <Users className="w-4 h-4 mr-2" />
+                Unirse
+              </Button>
+            )}
+          </>
         )}
         {status === 'playing' && (
           <Button onClick={onWatch} variant="outline" className="flex-1">

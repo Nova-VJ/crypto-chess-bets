@@ -101,7 +101,7 @@ contract ChessBetV2 {
 
     function createGame(bytes32 gameId) external payable whenNotPaused nonReentrant {
         require(msg.value > 0, "Stake required");
-        require(msg.value >= 0.001 ether, "Minimum stake is 0.001 BNB");
+        require(msg.value >= 0.00001 ether, "Minimum stake is 0.00001 BNB");
         require(msg.value <= 100 ether, "Maximum stake is 100 BNB");
         require(games[gameId].player1 == address(0), "Game already exists");
 

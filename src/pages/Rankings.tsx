@@ -107,7 +107,7 @@ const Rankings = () => {
               <Coins className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-lg font-bold">156 ETH</p>
+              <p className="text-lg font-bold">156 BNB</p>
               <p className="text-[10px] text-muted-foreground">Apostado hoy</p>
             </div>
           </div>
@@ -143,7 +143,7 @@ const Rankings = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold">{player.rating}</p>
-                  <p className="text-[10px] text-success">+{player.earnings} ETH</p>
+                  <p className="text-[10px] text-success">+{player.earnings} BNB</p>
                 </div>
               </motion.div>
             ))}

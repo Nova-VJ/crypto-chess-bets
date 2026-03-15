@@ -48,9 +48,9 @@ const WalletButton = () => {
   };
 
   const handleSwitchToBSC = async () => {
-    const success = await switchToBSC(true);
+    const success = await switchToBSC(false);
     if (success) {
-      toast.success('Cambiado a BSC Testnet');
+      toast.success('Cambiado a BNB Smart Chain');
     } else {
       toast.error('Error al cambiar de red');
     }

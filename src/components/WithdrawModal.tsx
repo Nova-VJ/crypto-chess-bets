@@ -48,11 +48,10 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
     try {
       const { error: txError } = await supabase.from('transactions').insert({
         user_id: user.id,
-        type: 'withdrawal',
+        type: currency === 'USDT' ? 'withdrawal_usdt' : 'withdrawal',
         amount: withdrawAmount,
         wallet_address: walletAddress,
         status: 'pending',
-        currency: currency,
       });
 
       if (txError) throw txError;

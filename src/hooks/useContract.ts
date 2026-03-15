@@ -49,10 +49,8 @@ export const useContract = () => {
       if (result) {
         toast.success('¡Partida creada en blockchain!', { id: 'create-game' });
         return result;
-      } else {
-        toast.error('Error al crear la partida', { id: 'create-game' });
-        return null;
       }
+      return null;
     } catch (err: any) {
       setError(err.message);
       toast.error(err.message || 'Error al crear partida', { id: 'create-game' });

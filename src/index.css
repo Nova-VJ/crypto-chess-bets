@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
@@ -75,11 +75,55 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Outfit', sans-serif;
+    font-size: 18px;
+    letter-spacing: 0.01em;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Cinzel', serif;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+
+  /* Override font-mono with Space Grotesk for numbers/data */
+  .font-mono {
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  /* Small uppercase labels - premium tracking */
+  .uppercase {
+    letter-spacing: 0.1em;
+  }
+
+  /* ===== Scale up ALL small text sizes ===== */
+
+  .text-\[10px\] {
+    font-size: 14px !important;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+  }
+
+  .text-xs {
+    font-size: 15px !important;
+    line-height: 1.4 !important;
+  }
+
+  .text-sm {
+    font-size: 17px !important;
+    line-height: 1.5 !important;
+  }
+
+  .text-base {
+    font-size: 19px !important;
+    line-height: 1.5 !important;
+  }
+
+  .text-lg {
+    font-size: 22px !important;
+    line-height: 1.4 !important;
   }
 }
 

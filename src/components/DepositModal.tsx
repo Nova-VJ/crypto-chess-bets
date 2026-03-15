@@ -10,28 +10,31 @@ import { useWallet } from '@/hooks/useWallet';
 import { supabase } from '@/integrations/supabase/client';
 import { parseEther, BrowserProvider } from 'ethers';
 import { CurrencyType, getTokenAddress, approveToken, getTokenBalance } from '@/lib/tokens';
+import BinanceDeposit from './BinanceDeposit';
 
 interface DepositModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const PLATFORM_WALLET = '0x742d35Cc6634C0532925a3b844Bc9e7595f1bA3c';
+const PLATFORM_WALLET = import.meta.env.VITE_PLATFORM_WALLET || '0x2cBf58C431dA0fb10ebe8A00AabacAb7e165DF56';
 
 const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
+  const [method, setMethod] = useState<'wallet' | 'binance-qr'>('wallet');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState<CurrencyType>('BNB');
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [usdtBalance, setUsdtBalance] = useState<string>('0');
   
-  const { user, profile, refreshProfile } = useAuth();
-  const { isConnected, address, balance, isBSC, switchToBSC } = useWallet();
+  const { user, profile, isAuthenticated, refreshProfile } = useAuth();
+  const { isConnected, address, balance, isBSC, chainId, switchToBSC } = useWallet();
 
   // Load USDT balance when connected
   const loadUsdtBalance = async () => {
     if (address) {
-      const tokenAddress = getTokenAddress(true);
+      const isTestnet = chainId === 97;
+      const tokenAddress = getTokenAddress(isTestnet);
       const bal = await getTokenBalance(tokenAddress, address);
       setUsdtBalance(bal);
     }
@@ -52,7 +55,14 @@ const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
   };
 
   const handleDeposit = async () => {
-    if (!isConnected || !address || !user) {
+    if (!isConnected && (!isAuthenticated || !user)) {
+      toast.error('Conecta tu wallet o inicia sesión', {
+        description: 'Se requiere una identidad para gestionar tu balance'
+      });
+      return;
+    }
+
+    if (!isConnected || !address) {
       toast.error('Conecta tu wallet primero');
       return;
     }
@@ -86,7 +96,8 @@ const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
 
       if (currency === 'USDT') {
         // Approve and transfer USDT
-        const tokenAddress = getTokenAddress(true);
+        const isTestnet = chainId === 97;
+        const tokenAddress = getTokenAddress(isTestnet);
         const approveTx = await approveToken(tokenAddress, PLATFORM_WALLET, amount, 18);
         if (!approveTx) throw new Error('Error al aprobar USDT');
 
@@ -111,13 +122,12 @@ const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
 
       // Record transaction
       const { error: txError } = await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: 'deposit',
+        user_id: user?.id || (profile?.id as any),
+        type: currency === 'USDT' ? 'deposit_usdt' : 'deposit',
         amount: depositAmount,
         tx_hash: txHash,
         wallet_address: address,
-        status: 'confirmed',
-        currency: currency,
+        status: 'confirmed'
       });
 
       if (txError) throw txError;
@@ -135,9 +145,15 @@ const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
       const { error: profileError } = await supabase
         .from('profiles')
         .update(updateData)
-        .eq('id', user.id);
+        .eq('id', user?.id || (profile?.id as any));
 
-      if (profileError) throw profileError;
+      // If balance_usdt column doesn't exist, try updating without it
+      if (profileError && profileError.message?.includes('balance_usdt')) {
+        console.warn('balance_usdt column not found, skipping balance update. Please add the column to your Supabase profiles table.');
+        // Don't throw — the on-chain transfer already succeeded
+      } else if (profileError) {
+        throw profileError;
+      }
 
       await refreshProfile();
       
@@ -181,7 +197,7 @@ const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
           className="glass-card w-full max-w-md p-6"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-success to-emerald-600 flex items-center justify-center">
                 <ArrowDown className="w-5 h-5 text-white" />
@@ -193,7 +209,26 @@ const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
             </Button>
           </div>
 
-          {!isConnected ? (
+          <div className="grid grid-cols-2 gap-2 mb-6 border-b border-white/5 pb-4">
+            <Button
+              variant={method === 'wallet' ? 'default' : 'ghost'}
+              onClick={() => setMethod('wallet')}
+              className="text-[10px] h-9 uppercase font-black tracking-widest rounded-xl"
+            >
+              Wallet Directa
+            </Button>
+            <Button
+              variant={method === 'binance-qr' ? 'default' : 'ghost'}
+              onClick={() => setMethod('binance-qr')}
+              className={`text-[10px] h-9 uppercase font-black tracking-widest rounded-xl ${method === 'binance-qr' ? 'bg-yellow-500 text-black' : 'text-yellow-500 hover:text-yellow-400'}`}
+            >
+              Binance QR
+            </Button>
+          </div>
+
+          {method === 'binance-qr' ? (
+            <BinanceDeposit onBack={() => setMethod('wallet')} onSuccess={onClose} />
+          ) : !isConnected ? (
             <div className="text-center py-8">
               <Wallet className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-muted-foreground mb-4">
@@ -227,7 +262,7 @@ const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
                   <span className="font-bold text-primary">
                     {currency === 'USDT' 
                       ? `${(profile?.balance_usdt || 0).toFixed(2)} USDT`
-                      : `${(profile?.balance || 0).toFixed(4)} BNB`
+                      : `${(profile?.balance || 0).toFixed(6)} BNB`
                     }
                   </span>
                 </div>
@@ -236,30 +271,31 @@ const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
                   <span className="font-mono text-sm">
                     {currency === 'USDT'
                       ? `${parseFloat(usdtBalance).toFixed(2)} USDT`
-                      : `${parseFloat(balance || '0').toFixed(4)} BNB`
+                      : `${parseFloat(balance || '0').toFixed(6)} BNB`
                     }
                   </span>
                 </div>
               </div>
 
               {/* Amount */}
-              <div className="space-y-2">
-                <Label htmlFor="amount">Monto a depositar</Label>
-                <div className="relative">
-                  <Input
-                    id="amount"
-                    type="number"
-                    step={currency === 'USDT' ? '1' : '0.001'}
-                    min={currency === 'USDT' ? '1' : '0.001'}
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="pr-16 text-lg"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    {currency}
-                  </span>
-                </div>
+              <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>Cantidad a depositar</Label>
+          <div className="relative">
+            <Input
+              type="number"
+              placeholder="0.000001"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              min="0.000001"
+              step="0.000001"
+              className="pr-16"
+            />
+            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground">
+              {currency}
+            </div>
+          </div>
+        </div>
               </div>
 
               {/* Quick amounts */}

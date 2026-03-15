@@ -31,7 +31,7 @@ export const useWallet = () => {
   }, []);
 
   const isBSCNetwork = useCallback((chainId: number | null): boolean => {
-    return chainId === 56 || chainId === 97; // BSC Mainnet or Testnet
+    return chainId === 56; // BNB Smart Chain Mainnet Only
   }, []);
 
   const fetchBalance = useCallback(async (address: string) => {

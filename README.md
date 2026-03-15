@@ -1,73 +1,76 @@
-# Welcome to your Lovable project
+# GameBet - Ajedrez con Apuestas Crypto
 
-## Project info
+App de ajedrez con frontend React/Vite y un backend FastAPI para el coach historico, el motor y el analisis post-partida.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Tecnologias
 
-## How can I edit this code?
+- Frontend: Vite, React, TypeScript
+- Estilos: Tailwind CSS, shadcn/ui, Framer Motion
+- Blockchain: Ethers.js
+- Backend/Base de datos: FastAPI, SQLAlchemy, Supabase
+- Motor: Stockfish
 
-There are several ways of editing your application.
+## Configuracion local
 
-**Use Lovable**
+1. Clona el repositorio:
+   ```bash
+   git clone <URL_DEL_REPOSITORIO>
+   cd exo-stellar
+   ```
+2. Instala dependencias del frontend:
+   ```bash
+   npm install
+   ```
+3. Crea `.env` con tus credenciales:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`
+   - `GEMINI_API_KEY`
+   - Puedes partir de `.env.example`.
+4. Levanta frontend y backend:
+   ```bash
+   npm run dev:web
+   cd coach-engine
+   python run_server.py
+   ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Despliegue recomendado
 
-Changes made via Lovable will be committed automatically to this repo.
+### Frontend en Cloudflare Pages
 
-**Use your preferred IDE**
+- Framework preset: `React (Vite)`
+- Build command: `npm install && npm run build`
+- Build output directory: `dist`
+- Variables:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_PUBLISHABLE_KEY`
+  - `VITE_COACH_API_URL`
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+`VITE_COACH_API_URL` debe apuntar a la URL base publica del backend, por ejemplo `https://gamechess-coach-engine.onrender.com`.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Backend en Render
 
-Follow these steps:
+El repositorio ya incluye:
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+- [render.yaml](C:/Users/patri/.gemini/antigravity/playground/exo-stellar/render.yaml)
+- [Dockerfile](C:/Users/patri/.gemini/antigravity/playground/exo-stellar/coach-engine/Dockerfile)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Variables necesarias en Render:
 
-# Step 3: Install the necessary dependencies.
-npm i
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `GEMINI_API_KEY`
+- `CORS_ALLOWED_ORIGINS`
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+Ejemplo de `CORS_ALLOWED_ORIGINS`:
+
+```text
+https://chessbet.pages.dev
 ```
 
-**Edit a file directly in GitHub**
+## Notas
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- En local, Vite hace proxy de `/api` hacia `127.0.0.1:8000`.
+- En produccion, Cloudflare Pages solo publica el frontend. El coach-engine debe vivir en un servicio aparte.
+- El backend ahora detecta Stockfish por variable `STOCKFISH_PATH` o por rutas comunes de Linux, asi que puede desplegarse en Render sin depender del `.exe` de Windows.
+- `coach-engine/coach.db` ahora forma parte del repositorio para que GitHub Desktop suba tambien la base local del backend.
+- `.env` sigue fuera del repositorio por seguridad. Si quieres clonar el proyecto completo en otra maquina, copia `.env.example` a `.env` y pega tus claves reales.
