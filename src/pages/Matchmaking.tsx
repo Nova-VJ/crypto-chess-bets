@@ -94,7 +94,8 @@ const Matchmaking = () => {
   };
 
   const tryMatchmaking = async () => {
-    if (!user || !queueEntryId) return;
+    const effectiveUser = user ?? session?.user;
+    if (!effectiveUser || !queueEntryId) return;
 
     // Look for a matching player
     const tcSeconds = getTimeControlSeconds(timeControl);
@@ -106,7 +107,7 @@ const Matchmaking = () => {
       .eq('time_control', tcSeconds)
       .gte('stake_amount', stakeAmount[0] * 0.8)
       .lte('stake_amount', stakeAmount[0] * 1.2)
-      .neq('user_id', user.id)
+      .neq('user_id', effectiveUser.id)
       .order('joined_at', { ascending: true })
       .limit(1);
 
@@ -118,7 +119,7 @@ const Matchmaking = () => {
       const { data: game, error: gameError } = await supabase
         .from('games')
         .insert({
-          creator_id: user.id,
+          creator_id: effectiveUser.id,
           opponent_id: match.user_id,
           stake_amount: avgStake,
           time_control: tcSeconds,
