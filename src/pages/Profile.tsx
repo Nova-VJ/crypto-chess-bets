@@ -263,16 +263,51 @@ const Profile = () => {
   };
 
   const openHistorySession = async (sessionKey: string) => {
-    if (!session?.access_token) return;
+    if (!profile?.id) return;
     setIsHistoryDetailOpen(true);
     setIsLoadingHistoryDetail(true);
     try {
-      const res = await fetch(`${API_URL}/history/sessions/${encodeURIComponent(sessionKey)}`, {
-        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      const summary = historySessions.find(s => s.session_key === sessionKey);
+      if (!summary) throw new Error('Session not found');
+
+      // Load messages for this session
+      let messages: HistorySessionMessage[] = [];
+      if (summary.session_token) {
+        const { data } = await supabase
+          .from('coach_conversations')
+          .select('id, role, content, interaction_mode, created_at, move_count')
+          .eq('user_id', profile.id)
+          .eq('session_token', summary.session_token)
+          .order('created_at', { ascending: true });
+        
+        if (data) {
+          messages = data.map((m: any, i: number) => ({
+            id: i,
+            role: m.role as 'user' | 'coach',
+            text: m.content,
+            interaction_mode: m.interaction_mode || 'coach_room',
+            timestamp: m.created_at,
+            move_count: m.move_count,
+          }));
+        }
+      }
+
+      // Load PGN if it's a game session
+      let pgn: string | null = null;
+      if (summary.kind === 'game') {
+        const { data: gameData } = await supabase
+          .from('coach_game_history')
+          .select('pgn')
+          .eq('id', sessionKey)
+          .maybeSingle();
+        pgn = gameData?.pgn || null;
+      }
+
+      setSelectedHistorySession({
+        ...summary,
+        pgn,
+        messages,
       });
-      if (!res.ok) throw new Error('No se pudo cargar el detalle');
-      const data = await res.json();
-      setSelectedHistorySession(data);
     } catch (error) {
       console.error(error);
       toast.error('No se pudo cargar ese historial');
