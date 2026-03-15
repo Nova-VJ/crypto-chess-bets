@@ -536,19 +536,8 @@ export default function HistoricalPlay() {
       return toast.error('Vinculando tu wallet con el servidor... espera un momento.');
     }
 
-    const wakeToast = toast.loading('Despertando motor del maestro...');
-    setIsWarmingEngine(true);
-
-    try {
-      await ensureCoachApiAwake({ attempts: 8, delayMs: 5000 });
-      toast.success('Motor listo.', { id: wakeToast });
-    } catch (error) {
-      console.error(error);
-      toast.error('El motor tardó demasiado en responder. Intenta de nuevo en unos segundos.', { id: wakeToast });
-      return;
-    } finally {
-      setIsWarmingEngine(false);
-    }
+    // Edge functions are always available - no wake needed
+    toast.success('Motor listo.');
     
     const newGame = new Chess();
     setGame(newGame);
