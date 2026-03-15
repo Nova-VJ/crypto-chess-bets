@@ -40,6 +40,16 @@ const AICoach = ({ profile }: AICoachProps) => {
   const activeCoach = COACHES.find(c => c.id === selectedCoachId) || COACHES[0];
   const currentChatHistory = chatHistories[selectedCoachId] || [];
 
+  // Prefetch wiki profile when coach changes
+  useEffect(() => {
+    if (selectedCoachId === 'general') { setWikiProfile(null); return; }
+    setWikiProfile(null);
+    supabase.functions.invoke('wiki-profile', { body: { coach_id: selectedCoachId, lang: 'es' } })
+      .then(({ data }) => { if (data && !data.error) setWikiProfile(data); })
+      .catch(() => {});
+  }, [selectedCoachId]);
+  const currentChatHistory = chatHistories[selectedCoachId] || [];
+
   const ensureCoachRoomSession = (coachId: string) => {
     const existing = chatSessionTokens[coachId];
     if (existing) return existing;
