@@ -297,9 +297,27 @@ export default function HistoricalPlay() {
 
 
   const loadHistory = async () => {
-    // History was stored in the Python backend's SQLite DB
-    // Now returns empty - will be stored in Lovable Cloud DB in the future
-    setGameHistory([]);
+    if (!profile?.id) { setGameHistory([]); setIsLoadingHistory(false); return; }
+    setIsLoadingHistory(true);
+    try {
+      const { data } = await supabase
+        .from('coach_game_history')
+        .select('*')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (data) {
+        setGameHistory(data.map((g: any, i: number) => ({
+          id: i + 1,
+          date: new Date(g.created_at).toLocaleDateString('es'),
+          opponent: g.coach_id,
+          opponent_id: g.coach_id,
+          result: g.result || '?',
+          rating: g.rating || 0,
+          review: g.review,
+        })));
+      }
+    } catch (e) { console.error(e); }
     setIsLoadingHistory(false);
   };
 
