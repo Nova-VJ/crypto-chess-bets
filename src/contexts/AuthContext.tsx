@@ -157,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         // If already has a user, ensure wallet is linked
         if (user && profile && !profile.wallet_address) {
-          await linkWallet(address, 'metamask');
+          await linkWallet(address, activeWalletType || 'metamask');
           return;
         }
 
