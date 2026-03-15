@@ -57,7 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncTrigger, setSyncTrigger] = useState(0);
-  const { address } = useWallet();
+  const { address, activeWalletType } = useWalletContext();
 
   const fetchProfile = async (userId: string) => {
     try {
