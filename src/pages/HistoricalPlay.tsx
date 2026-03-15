@@ -420,19 +420,7 @@ export default function HistoricalPlay() {
     
     setTimeout(async () => {
       try {
-        const response = await fetchCoachApi('/api/play/move', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`
-          },
-          body: JSON.stringify({
-            fen: currentGame.fen(),
-            persona: activeCoach.id,
-            time_control: selectedTime
-          })
-        }, { retries: 2, retryDelayMs: 5000 });
-        const data = await response.json();
+        const data = await invokeChessMove(currentGame.fen(), activeCoach.id, selectedTime);
         if (data.move) {
           const newGame = new Chess();
           if (sourcePgn) {
@@ -461,38 +449,26 @@ export default function HistoricalPlay() {
 
           if (movesSinceLast >= 10 && !isFetchingCommentaryRef.current) {
             isFetchingCommentaryRef.current = true;
-            fetchCoachApi('/api/chat', {
-              method: "POST",
-              headers: { 
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${session?.access_token}`
-              },
-              body: JSON.stringify({ 
-                message: "Comenta brevemente la posicion actual.", 
-                persona: activeCoach.id,
-                interaction_mode: 'in_game',
-                message_kind: 'auto_commentary',
-                fen: newFen,
-                pgn: newGame.pgn(),
-                move_count: currentMoveCount,
-                silent: true,
-                user_color: userColor,
-                turn: newGame.turn(),
-                game_id: null,
-                session_token: currentSessionToken
-              })
-            }, { retries: 2 }).then(r => r.json()).then(chatData => {
+            invokeChessChat({ 
+              message: "Comenta brevemente la posicion actual.", 
+              persona: activeCoach.id,
+              interaction_mode: 'in_game',
+              message_kind: 'auto_commentary',
+              fen: newFen,
+              pgn: newGame.pgn(),
+              move_count: currentMoveCount,
+              silent: true,
+              user_color: userColor,
+              turn: newGame.turn(),
+              game_id: null,
+              session_token: currentSessionToken
+            }).then(chatData => {
               isFetchingCommentaryRef.current = false;
               if (chatData.reply) {
                 setChatHistories(prev => {
                   const history = prev[activeCoach.id] || [];
                   const lastMsg = history.length > 0 ? history[history.length - 1].text : null;
-                  
-                  if (chatData.reply === lastMsg) {
-                    console.log("DEBUG: Frontend blocked duplicate SILENT message.");
-                    return prev;
-                  }
-
+                  if (chatData.reply === lastMsg) return prev;
                   return {
                     ...prev,
                     [activeCoach.id]: [...history, { role: 'coach', text: chatData.reply }]
@@ -507,7 +483,7 @@ export default function HistoricalPlay() {
         }
       } catch (err) {
         console.error(err);
-        toast.error('Motor desconectado.');
+        toast.error('Error al obtener jugada del maestro.');
       } finally {
         if (pendingEngineFenRef.current === currentFen) pendingEngineFenRef.current = null;
         setIsEngineThinking(false);
