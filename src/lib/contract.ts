@@ -71,7 +71,8 @@ export const generateGameId = (creator: string, timestamp: number): string => {
 };
 
 export const switchToBSC = async (testnet = false): Promise<boolean> => {
-  if (!window.ethereum) return false;
+  const activeProvider = getActiveProvider();
+  if (!activeProvider) return false;
 
   const network = testnet ? BSC_TESTNET : BSC_MAINNET;
 
