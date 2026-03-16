@@ -363,12 +363,21 @@ serve(async (req) => {
           memProfileQuery.eq("coach_id", persona);
         }
 
-        // Fetch relevant master games for context
+        // Fetch ALL master games for context (no limit)
         const masterQuery = supabase
           .from("master_games")
-          .select("white, black, result, opening, eco, event, date")
-          .eq("coach_id", persona !== "general" ? persona : "fischer")
-          .limit(5);
+          .select("white, black, result, opening, eco, event, date");
+        if (persona !== "general") {
+          masterQuery.eq("coach_id", persona);
+        }
+
+        // Fetch knowledge units for this coach
+        const knowledgeQuery = supabase
+          .from("knowledge_units")
+          .select("concept_name, phase, explanation, triggers, anti_patterns, example_fen, source_id");
+        if (persona !== "general") {
+          knowledgeQuery.eq("coach_id", persona);
+        }
 
         const [convResult, gameResult, memProfileResult, masterResult] = await Promise.all([
           convQuery, gameQuery, memProfileQuery, masterQuery,
