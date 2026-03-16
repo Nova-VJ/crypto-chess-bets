@@ -363,15 +363,24 @@ serve(async (req) => {
           memProfileQuery.eq("coach_id", persona);
         }
 
-        // Fetch relevant master games for context
+        // Fetch ALL master games for context (no limit)
         const masterQuery = supabase
           .from("master_games")
-          .select("white, black, result, opening, eco, event, date")
-          .eq("coach_id", persona !== "general" ? persona : "fischer")
-          .limit(5);
+          .select("white, black, result, opening, eco, event, date");
+        if (persona !== "general") {
+          masterQuery.eq("coach_id", persona);
+        }
 
-        const [convResult, gameResult, memProfileResult, masterResult] = await Promise.all([
-          convQuery, gameQuery, memProfileQuery, masterQuery,
+        // Fetch knowledge units for this coach
+        const knowledgeQuery = supabase
+          .from("knowledge_units")
+          .select("concept_name, phase, explanation, triggers, anti_patterns, example_fen, source_id");
+        if (persona !== "general") {
+          knowledgeQuery.eq("coach_id", persona);
+        }
+
+        const [convResult, gameResult, memProfileResult, masterResult, knowledgeResult] = await Promise.all([
+          convQuery, gameQuery, memProfileQuery, masterQuery, knowledgeQuery,
         ]);
 
         const memParts: string[] = [];
@@ -409,12 +418,20 @@ serve(async (req) => {
           memParts.push(`[HISTORIAL COMPLETO DE CONVERSACIONES — ${convResult.data.length} mensaje(s)]\n${recentMsgs.join("\n")}`);
         }
 
-        // Master games references
+        // Master games references (ALL games, no limit)
         if (masterResult.data && masterResult.data.length > 0) {
           const masterLines = masterResult.data.map((mg: any) =>
             `- ${mg.white} vs ${mg.black} (${mg.event || "?"}, ${mg.date || "?"}): ${mg.result || "?"}, ${mg.opening || mg.eco || "?"}`
           );
-          memParts.push(`[PARTIDAS MAESTRAS DE REFERENCIA]\n${masterLines.join("\n")}`);
+          memParts.push(`[PARTIDAS MAESTRAS DE REFERENCIA — ${masterResult.data.length} partida(s)]\n${masterLines.join("\n")}`);
+        }
+
+        // Knowledge units from books (ALL concepts, no limit)
+        if (knowledgeResult.data && knowledgeResult.data.length > 0) {
+          const conceptLines = knowledgeResult.data.map((ku: any) =>
+            `- ${ku.concept_name} (${ku.phase || "general"}): ${ku.explanation || ""} | Triggers: ${ku.triggers || ""} | Anti-patrones: ${ku.anti_patterns || ""}`
+          );
+          memParts.push(`[BASE DE CONOCIMIENTO DEL MAESTRO — ${knowledgeResult.data.length} concepto(s)]\n${conceptLines.join("\n")}`);
         }
 
         if (memParts.length > 0) {
