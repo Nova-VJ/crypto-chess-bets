@@ -60,7 +60,7 @@ async function fetchMasterGamesFromLichess(playerName: string, coachId: string):
       if (play) params.set("play", play);
 
       const url = `https://explorer.lichess.ovh/masters?${params.toString()}`;
-      const resp = await fetch(url, { headers: { Accept: "application/json" } });
+      const resp = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "ChessCoachApp/1.0 (contact@chesscoach.app)" } });
 
       if (!resp.ok) {
         console.warn(`Lichess ${resp.status} for play=${play}`);
